@@ -1,23 +1,23 @@
-const CACHE_NAME = "avanti-altro-v10";
+const CACHE_NAME = "avanti-altro-v11"; // Incrementato
 const ASSETS = [
-    "/",
-    "/index.html",
-    "/manifest.json",
-    "/src/style.css",
-    "/src/domande.js",
-    "/src/field.js",
-    "/src/players.js",
-    "/src/grafica.js",
-    "/src/main.js",
-    "/src/key.js",
-    "/img/quizshow.png",
-    "/img/sfera.png",
-    "/img/background.png",
-    "/img/back.png",
-    "/img/cuboblu.png",
-    "/img/cubogia.png",
-    "/img/cubogrn.png",
-    "/img/cuborux.png"
+    "./",
+    "./index.html",
+    "./manifest.json",
+    "./src/style.css",
+    "./src/domande.js", // Controlla che il file si chiami esattamente così
+    "./src/field.js",
+    "./src/players.js",
+    "./src/grafica.js",
+    "./src/main.js",
+    "./src/key.js",
+    "./img/quizshow.png",
+    "./img/sfera.png",
+    "./img/background.png",
+    "./img/back.png",
+    "./img/cuboblu.png",
+    "./img/cubogia.png",
+    "./img/cubogrn.png",
+    "./img/cuborux.png"
 ];
 
 self.addEventListener("install", event => {
