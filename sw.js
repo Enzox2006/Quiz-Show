@@ -1,22 +1,23 @@
 const CACHE_NAME = "avanti-altro-v2";
 const ASSETS = [
-    "/index.html",
-    "/manifest.json",
-    "/src/style.css",
-    "/src/domande.js",
-    "/src/field.js",
-    "/src/players.js",
-    "/src/grafica.js",
-    "/src/main.js",
-    "/src/key.js",
-    "/img/quizshow.png",
-    "/img/sfera.png",
-    "/img/background.png",
-    "/img/back.png",
-    "/img/cuboblu.png",
-    "/img/cubogia.png",
-    "/img/cubogrn.png",
-    "/img/cuborux.png"
+    "/Quiz-Show/",
+    "/Quiz-Show/index.html",
+    "/Quiz-Show/manifest.json",
+    "/Quiz-Show/src/style.css",
+    "/Quiz-Show/src/domande.js",
+    "/Quiz-Show/src/field.js",
+    "/Quiz-Show/src/players.js",
+    "/Quiz-Show/src/grafica.js",
+    "/Quiz-Show/src/main.js",
+    "/Quiz-Show/src/key.js",
+    "/Quiz-Show/img/quizshow.png",
+    "/Quiz-Show/img/sfera.png",
+    "/Quiz-Show/img/background.png",
+    "/Quiz-Show/img/back.png",
+    "/Quiz-Show/img/cuboblu.png",
+    "/Quiz-Show/img/cubogia.png",
+    "/Quiz-Show/img/cubogrn.png",
+    "/Quiz-Show/img/cuborux.png"
 ];
 
 self.addEventListener("install", event => {
