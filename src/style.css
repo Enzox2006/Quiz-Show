@@ -1,40 +1,48 @@
-/* RESET E CONFIGURAZIONE VIEWPORT MOBILE */
+/* --- RESET E SIGILLATURA BORDALI --- */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    /* Impedisce lo zoom accidentale e i rimbalzi su mobile */
+    /* Impedisce lo zoom accidentale e i rimbalzi fastidiosi su mobile */
     touch-action: manipulation;
 }
 
+/* 
+   Fondamentale: impostare lo sfondo scuro su HTML e BODY 
+   impedisce di vedere i bordi bianchi durante il caricamento o lo scroll 
+*/
+html, body {
+    background-color: #0a0015 !important; 
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    height: 100%;
+    height: 100dvh; /* Altezza dinamica per adattarsi alle barre dei browser mobile */
+    overflow: hidden; /* Blocca lo scroll della pagina esterna */
+    position: fixed; /* Evita l'effetto "rimbalzo" che scopre lo sfondo del browser */
+}
+
 body {
-    overflow: hidden;
     font-family: 'Barlow Condensed', sans-serif;
-    background: #0a0015;
-    /* Usa l'altezza dinamica per adattarsi perfettamente a Chrome/Safari mobile */
-    height: 100vh;
-    height: 100dvh; 
-    width: 100vw;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* CONTENITORE PRINCIPALE (FIELD) */
+/* --- CONTENITORE DI GIOCO (FIELD) --- */
 #field {
-    width: 100%;
-    height: 100%;
-    max-width: 100vw;
-    max-height: 100dvh;
+    width: 100vw;
+    height: 100dvh;
+    background-color: #0a0015;
     position: relative;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Padding di sicurezza per i bordi e la notch dei telefoni */
+    /* Gestisce le "Safe Areas" per i telefoni con notch/tacca */
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* EFFETTI CARD E BOTTONI */
+/* --- EFFETTI CARD E INTERFACCIA --- */
 .card-hover {
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s !important;
     cursor: pointer;
@@ -75,7 +83,7 @@ body {
     transform: scale(0.98) !important;
 }
 
-/* ANIMAZIONI DI STATO */
+/* --- ANIMAZIONI --- */
 .overlay {
     animation: fadeIn 0.4s ease;
 }
@@ -86,26 +94,25 @@ body {
 }
 
 @keyframes slideUp {
-    /* Corretto per mantenere la centratura con position absolute */
     from { transform: translate(-50%, calc(-50% + 40px)); opacity: 0; }
     to   { transform: translate(-50%, -50%); opacity: 1; }
 }
 
 .slide-up {
-    position: absolute; /* Necessario per l'animazione translate -50% */
+    position: absolute;
     top: 50%;
     left: 50%;
     animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* TIMER E FEEDBACK PUNTI */
+/* --- TIMER E PROGRESSO --- */
 @keyframes timerPulse {
     0%, 100% { 
-        text-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+        text-shadow: 0 0 20px rgba(255, 68, 68, 0.6); 
         transform: scale(1);
     }
     50% { 
-        text-shadow: 0 0 60px rgba(255, 68, 68, 1), 0 0 100px rgba(255, 68, 68, 0.4);
+        text-shadow: 0 0 60px rgba(255, 68, 68, 1), 0 0 100px rgba(255, 68, 68, 0.4); 
         transform: scale(1.1);
     }
 }
@@ -127,15 +134,15 @@ body {
 
 @keyframes dotShake {
     0%, 100% { transform: translateX(0); }
-    25%       { transform: translateX(-4px); }
-    75%       { transform: translateX(4px); }
+    25%      { transform: translateX(-4px); }
+    75%      { transform: translateX(4px); }
 }
 
 .dot-shake {
     animation: dotShake 0.3s ease;
 }
 
-/* FIX INPUT PER MOBILE */
+/* --- FIX INPUT --- */
 input[type="text"],
 input[type="number"] {
     -webkit-appearance: none;
@@ -149,18 +156,14 @@ input[type="number"]::-webkit-outer-spin-button {
     margin: 0;
 }
 
-/* STATI AGGIUNTIVI */
+/* --- STATI SPECIALI --- */
 .coming-soon-card {
     opacity: 0.45;
     pointer-events: none;
 }
 
-/* MEDIA QUERY PER OTTIMIZZAZIONE SPAZI */
+/* --- OTTIMIZZAZIONE TESTI PER MOBILE --- */
 @media (max-width: 600px) {
-    #field {
-        padding: 15px;
-    }
-    
     h1 {
         font-size: 1.8rem !important;
     }
