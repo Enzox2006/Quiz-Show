@@ -1,0 +1,120 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    overflow: hidden;
+    font-family: 'Barlow Condensed', sans-serif;
+    background: #0a0015;
+}
+
+.card-hover {
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s !important;
+    cursor: pointer;
+}
+
+.card-hover:hover {
+    transform: translateY(-6px) !important;
+    box-shadow: 0 24px 60px rgba(240, 200, 0, 0.25) !important;
+    border-color: rgba(240, 200, 0, 0.7) !important;
+}
+
+.btn-primary {
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s !important;
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 12px 40px rgba(240, 200, 0, 0.4) !important;
+}
+
+.btn-primary:active {
+    transform: translateY(0px) !important;
+}
+
+.answer-btn {
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s !important;
+}
+
+.answer-btn:hover {
+    background: rgba(240, 200, 0, 0.12) !important;
+    border-color: rgba(240, 200, 0, 0.5) !important;
+    transform: scale(1.015) !important;
+}
+
+.answer-btn:active {
+    transform: scale(0.98) !important;
+}
+
+.overlay {
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translate(-50%, calc(-50% + 40px)); opacity: 0; }
+    to   { transform: translate(-50%, -50%); opacity: 1; }
+}
+
+.slide-up {
+    animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes timerPulse {
+    0%, 100% { text-shadow: 0 0 20px rgba(255, 68, 68, 0.6); }
+    50%       { text-shadow: 0 0 60px rgba(255, 68, 68, 1), 0 0 100px rgba(255, 68, 68, 0.4); }
+}
+
+.timer-low {
+    animation: timerPulse 0.6s infinite !important;
+    color: #ff4444 !important;
+}
+
+@keyframes dotPop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.5); }
+    100% { transform: scale(1.15); }
+}
+
+.dot-pop {
+    animation: dotPop 0.3s ease;
+}
+
+@keyframes dotShake {
+    0%, 100% { transform: translateX(0); }
+    25%       { transform: translateX(-4px); }
+    75%       { transform: translateX(4px); }
+}
+
+.dot-shake {
+    animation: dotShake 0.3s ease;
+}
+
+input[type="text"],
+input[type="number"] {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.coming-soon-card {
+    opacity: 0.45;
+    pointer-events: none;
+}
