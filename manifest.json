@@ -2,8 +2,8 @@
   "name": "Quiz Show",
   "short_name": "Quiz Show",
   "description": "Giochi quiz TV: Avanti un Altro e molto altro ancora.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#0a0018",
@@ -11,13 +11,13 @@
   "lang": "it",
   "icons": [
     {
-      "src": "img/quizshow.png",
+      "src": "./img/quizshow.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "img/quizshow.png",
+      "src": "./img/quizshow.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
