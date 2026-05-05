@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Quiz Show</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="img/quizshow.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/style.css">
+    <style>
+        #download-zip-btn {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 9999;
+            background: rgba(0,0,0,0.75);
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-family: sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+        }
+        #download-zip-btn:hover { background: rgba(0,0,0,0.95); }
+        #download-zip-btn:disabled { opacity: 0.5; cursor: wait; }
+    </style>
+</head>
+<body>
+    <button id="download-zip-btn" title="Scarica il progetto come ZIP">⬇ Scarica ZIP</button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        document.getElementById('download-zip-btn').addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = '⏳ Preparando...';
+            try {
+                const zip = new JSZip();
+                const files = [
+                    'index.html', 'manifest.json', 'sw.js',
+                    'src/domande.js', 'src/field.js', 'src/grafica.js',
+                    'src/key.js', 'src/main.js', 'src/players.js', 'src/style.css',
+                    'img/background.png', 'img/back.png', 'img/cuboblu.png',
+                    'img/cubogia.png', 'img/cubogrn.png', 'img/cuborux.png',
+                    'img/quizshow.png', 'img/sfera.png'
+                ];
+                for (const f of files) {
+                    const res = await fetch(f);
+                    const isImg = /\.(png|jpg|gif|ico)$/i.test(f);
+                    const data = isImg ? await res.arrayBuffer() : await res.text();
+                    zip.file(f, data);
+                }
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'quiz-show.zip';
+                a.click();
+                btn.textContent = '✅ Scaricato!';
+                setTimeout(() => { btn.textContent = '⬇ Scarica ZIP'; btn.disabled = false; }, 3000);
+            } catch(e) {
+                btn.textContent = '❌ Errore';
+                btn.disabled = false;
+                console.error(e);
+            }
+        });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
+    <script src="src/domande.js" defer></script>
+    <script src="src/field.js" defer></script>
+    <script src="src/players.js" defer></script>
+    <script src="src/grafica.js" defer></script>
+    <script src="src/main.js" defer></script>
+    <script src="src/key.js" defer></script>
+</body>
+</html>
