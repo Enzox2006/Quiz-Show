@@ -1,4 +1,4 @@
-const CACHE_NAME = "avanti-altro-v2";
+const CACHE_NAME = "avanti-altro-v3";
 const ASSETS = [
     "/Quiz-Show/",
     "/Quiz-Show/index.html",
