@@ -1,7 +1,7 @@
 const quest = [
     // --- ORIGINALI ---
     {
-        testo: "Italiano 0 francese, Napoleone era un generale?",
+        testo: "Italiano o francese, Napoleone era un generale?",
         risposte: ["Italiano", "Francese"],
         giusta: 0,
     },
