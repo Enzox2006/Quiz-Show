@@ -1,24 +1,23 @@
-const CACHE_NAME = "avanti-altro-v17";
-// Usa percorsi relativi (senza lo slash iniziale) per evitare 404 in sottocartelle
+const CACHE_NAME = "avanti-altro-v18"; // Cambia versione per forzare l'aggiornamento
 const ASSETS = [
-    "./",
-    "./index.html",
-    "./manifest.json",
-    "./src/style.css",
-    "./src/domande.js",
-    "./src/field.js",
-    "./src/players.js",
-    "./src/grafica.js",
-    "./src/main.js",
-    "./src/key.js",
-    "./img/quizshow.png",
-    "./img/sfera.png",
-    "./img/background.png",
-    "./img/back.png",
-    "./img/cuboblu.png",
-    "./img/cubogia.png",
-    "./img/cubogrn.png",
-    "./img/cuborux.png"
+    "./",                 // La cartella corrente[cite: 13]
+    "index.html",         // Rimosso lo slash iniziale[cite: 13]
+    "manifest.json",
+    "src/style.css",
+    "src/domande.js",
+    "src/field.js",
+    "src/players.js",
+    "src/grafica.js",
+    "src/main.js",
+    "src/key.js",
+    "img/quizshow.png",
+    "img/sfera.png",
+    "img/background.png",
+    "img/back.png",
+    "img/cuboblu.png",
+    "img/cubogia.png",
+    "img/cubogrn.png",
+    "img/cuborux.png"
 ];
 
 self.addEventListener("install", event => {
