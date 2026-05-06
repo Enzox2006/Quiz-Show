@@ -1,0 +1,170 @@
+/* --- RESET E SIGILLATURA BORDALI --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    /* Impedisce lo zoom accidentale e i rimbalzi fastidiosi su mobile */
+    touch-action: manipulation;
+}
+
+/* 
+   Fondamentale: impostare lo sfondo scuro su HTML e BODY 
+   impedisce di vedere i bordi bianchi durante il caricamento o lo scroll 
+*/
+html, body {
+    background-color: #0a0015 !important; 
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    height: 100%;
+    height: 100dvh; /* Altezza dinamica per adattarsi alle barre dei browser mobile */
+    overflow: hidden; /* Blocca lo scroll della pagina esterna */
+    position: fixed; /* Evita l'effetto "rimbalzo" che scopre lo sfondo del browser */
+}
+
+body {
+    font-family: 'Barlow Condensed', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- CONTENITORE DI GIOCO (FIELD) --- */
+#field {
+    width: 100vw;
+    height: 100dvh;
+    background-color: #0a0015;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Gestisce le "Safe Areas" per i telefoni con notch/tacca */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* --- EFFETTI CARD E INTERFACCIA --- */
+.card-hover {
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s !important;
+    cursor: pointer;
+}
+
+.card-hover:hover {
+    transform: translateY(-6px) !important;
+    box-shadow: 0 24px 60px rgba(240, 200, 0, 0.25) !important;
+    border-color: rgba(240, 200, 0, 0.7) !important;
+}
+
+.btn-primary {
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s !important;
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 12px 40px rgba(240, 200, 0, 0.4) !important;
+}
+
+.btn-primary:active {
+    transform: translateY(0px) !important;
+}
+
+.answer-btn {
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s !important;
+}
+
+.answer-btn:hover {
+    background: rgba(240, 200, 0, 0.12) !important;
+    border-color: rgba(240, 200, 0, 0.5) !important;
+    transform: scale(1.015) !important;
+}
+
+.answer-btn:active {
+    transform: scale(0.98) !important;
+}
+
+/* --- ANIMAZIONI --- */
+.overlay {
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translate(-50%, calc(-50% + 40px)); opacity: 0; }
+    to   { transform: translate(-50%, -50%); opacity: 1; }
+}
+
+.slide-up {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* --- TIMER E PROGRESSO --- */
+@keyframes timerPulse {
+    0%, 100% { 
+        text-shadow: 0 0 20px rgba(255, 68, 68, 0.6); 
+        transform: scale(1);
+    }
+    50% { 
+        text-shadow: 0 0 60px rgba(255, 68, 68, 1), 0 0 100px rgba(255, 68, 68, 0.4); 
+        transform: scale(1.1);
+    }
+}
+
+.timer-low {
+    animation: timerPulse 0.6s infinite !important;
+    color: #ff4444 !important;
+}
+
+@keyframes dotPop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.5); }
+    100% { transform: scale(1.15); }
+}
+
+.dot-pop {
+    animation: dotPop 0.3s ease;
+}
+
+@keyframes dotShake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-4px); }
+    75%      { transform: translateX(4px); }
+}
+
+.dot-shake {
+    animation: dotShake 0.3s ease;
+}
+
+/* --- FIX INPUT --- */
+input[type="text"],
+input[type="number"] {
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* --- STATI SPECIALI --- */
+.coming-soon-card {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* --- OTTIMIZZAZIONE TESTI PER MOBILE --- */
+@media (max-width: 600px) {
+    h1 {
+        font-size: 1.8rem !important;
+    }
+}
