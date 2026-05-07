@@ -1,4 +1,4 @@
-const CACHE_NAME = "avanti-altro-v21"; // Cambia versione per forzare l'aggiornamento
+const CACHE_NAME = "avanti-altro-v22"; // Cambia versione per forzare l'aggiornamento
 const ASSETS = [
     "./",
     "index.html",
