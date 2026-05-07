@@ -130,14 +130,7 @@ const grafica = {
         cardsRow.appendChild(card3);
         field.appendChild(cardsRow);
 
-        let footer = document.createElement("div");
-        footer.innerHTML = "Pensato per giocare · 16:9 · Full Screen";
-        footer.style.cssText = `
-            position: absolute; bottom: 28px; left: 0; right: 0; text-align: center;
-            font-family: 'Barlow', sans-serif; font-size: 20px;
-            color: rgba(255,255,255,0.25); letter-spacing: 2px;
-        `;
-        field.appendChild(footer);
+        
 
         let dlZone = document.createElement("div");
         dlZone.style.cssText = `
