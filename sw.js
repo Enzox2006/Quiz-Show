@@ -13,13 +13,6 @@ const ASSETS = [
     "src/cruciverba.js",
     "src/key.js",
     "img/quizshow.png",
-    "img/sfera.png",
-    "img/background.png",
-    "img/back.png",
-    "img/cuboblu.png",
-    "img/cubogia.png",
-    "img/cubogrn.png",
-    "img/cuborux.png"
 ];
 
 self.addEventListener("install", event => {
