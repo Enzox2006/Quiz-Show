@@ -208,18 +208,68 @@ const ruotaOnline = {
             }
         };
 
-        // ─ 9. _confermaCons: solo giocatore attivo ────────────────────
+        // ─ 9. _confermaCons: solo giocatore attivo, broadcast immediato ──
         const orig_confermaCons = ruota._confermaCons.bind(ruota);
         ruota._confermaCons = function (lettera, isRaddoppia) {
             if (!ruota._onlineSoppressiAzioni && ruota.turno !== self.mioIdx) return;
             orig_confermaCons(lettera, isRaddoppia);
+            if (!ruota._onlineSoppressiAzioni && self.socket) {
+                self.inviaAzione('lettera_cons', { lettera, isRaddoppia });
+            }
         };
 
-        // ─ 10. _confermaVocale: solo giocatore attivo ─────────────────
+        // ─ 10. _confermaVocale: solo giocatore attivo, broadcast immediato
         const orig_confermaVocale = ruota._confermaVocale.bind(ruota);
         ruota._confermaVocale = function (vocale) {
             if (!ruota._onlineSoppressiAzioni && ruota.turno !== self.mioIdx) return;
             orig_confermaVocale(vocale);
+            if (!ruota._onlineSoppressiAzioni && self.socket) {
+                self.inviaAzione('lettera_voc', { vocale });
+            }
+        };
+
+        // ─ 10b. _dopoRuota: spettatori impostano solo lo stato, niente UI ─
+        const orig_dopoRuota = ruota._dopoRuota.bind(ruota);
+        ruota._dopoRuota = function (sp, idx) {
+            if (ruota.turno !== self.mioIdx) {
+                // Imposta lo stato (necessario per _confermaCons remota)
+                if (sp.tipo === 'jolly') {
+                    ruota._jollyIdx = idx; ruota.valoreRuota = 200;
+                    ruota.attesaLettera = true; ruota._tipoAzione = 'jolly';
+                } else if (sp.tipo === 'express') {
+                    ruota._expressTurn = true; ruota.valoreRuota = 500;
+                    ruota.attesaLettera = true; ruota._tipoAzione = 'euro';
+                } else if (sp.tipo === 'raddoppia') {
+                    ruota._raddoppiaIdx = idx;
+                    ruota.attesaLettera = true; ruota._tipoAzione = 'raddoppia';
+                } else if (sp.tipo === 'bancarotta' || sp.tipo === 'passa' || sp.tipo === 'jackpot') {
+                    ruota.attesaLettera = false;
+                } else {
+                    ruota.valoreRuota = sp.valore;
+                    ruota.attesaLettera = true; ruota._tipoAzione = 'euro';
+                }
+                // Toast con il valore girato
+                let msg = sp.tipo === 'bancarotta' ? '💥 BANCAROTTA!' :
+                          sp.tipo === 'passa'      ? 'PASSA' :
+                          sp.tipo === 'jolly'      ? '🃏 JOLLY!' :
+                          sp.tipo === 'jackpot'    ? '💰 JACKPOT!' :
+                          sp.tipo === 'express'    ? '🚄 EXPRESS!' :
+                          sp.tipo === 'raddoppia'  ? '✖2 RADDOPPIA!' : sp.label;
+                let col = (sp.tipo === 'bancarotta') ? '#ff4444' :
+                          (sp.tipo === 'passa')      ? '#888888' :
+                          (sp.tipo === 'jolly' || sp.tipo === 'express' || sp.tipo === 'raddoppia') ? '#a855f7' : '#f0c800';
+                ruota._showToast(msg, col);
+                // Torna alla schermata gioco (evita _apriChiamataLettera stale)
+                setTimeout(() => {
+                    if (main.current === 'RuotaSpin') {
+                        grafica.puliscifield();
+                        ruota._renderGioco();
+                        main.current = 'RuotaGioco';
+                    }
+                }, 1200);
+                return;
+            }
+            orig_dopoRuota(sp, idx);
         };
 
         // ─ 11. _velocissimaPrenota: versione online ────────────────────
@@ -865,41 +915,67 @@ const ruotaOnline = {
         grafica._statusBar("● ONLINE", "RUOTA DELLA FORTUNA", () => {});
 
         const self = this;
-
-        let wrap = document.createElement("div");
-        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;align-items:stretch;`;
-
-        // Pannello sinistro: tabellone
-        let leftPanel = document.createElement("div");
-        leftPanel.style.cssText = `flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;`;
-        let tabEl = ruota._buildTabellone();
-        let sc = Math.min(0.65, window.innerWidth * 0.55 / 1100);
-        tabEl.style.transform = `scale(${sc})`;
-        tabEl.style.transformOrigin = 'top center';
-        tabEl.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
-        leftPanel.appendChild(tabEl);
-        leftPanel.appendChild(ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : ''));
-
-        // Pannello destro: ruota live
-        let rightPanel = document.createElement("div");
-        rightPanel.style.cssText = `width:360px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;border-left:1px solid rgba(255,255,255,0.07);`;
+        const isMobile = window.innerWidth < 680;
 
         let nomeGiocante = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
         let colore = ruota.COLORS[ruota.turno];
 
         let giraLabel = document.createElement("div");
-        giraLabel.innerHTML = `<strong style="color:${colore}">${nomeGiocante}</strong><br><span style="font-size:22px;color:rgba(255,255,255,0.45)">sta girando la ruota</span>`;
-        giraLabel.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;text-align:center;line-height:1.4;`;
+        giraLabel.innerHTML = `<strong style="color:${colore}">${nomeGiocante}</strong><br><span style="font-size:${isMobile ? 16 : 22}px;color:rgba(255,255,255,0.45)">sta girando la ruota</span>`;
+        giraLabel.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:${isMobile ? 22 : 30}px;font-weight:700;text-align:center;line-height:1.4;`;
 
-        let sz = 280;
+        let sz = isMobile ? 140 : 280;
         let smallCanvas = document.createElement("canvas");
         smallCanvas.width = sz * 2; smallCanvas.height = sz * 2;
         smallCanvas.style.cssText = `width:${sz}px;height:${sz}px;`;
 
-        rightPanel.appendChild(giraLabel);
-        rightPanel.appendChild(smallCanvas);
-        wrap.appendChild(leftPanel);
-        wrap.appendChild(rightPanel);
+        let wrap = document.createElement("div");
+
+        if (isMobile) {
+            // Layout verticale su mobile: tabellone sopra, ruota sotto
+            wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;overflow:hidden;`;
+
+            let tabEl = ruota._buildTabellone();
+            let sc = Math.min(0.92, window.innerWidth * 0.92 / 1100);
+            tabEl.style.transform = `scale(${sc})`;
+            tabEl.style.transformOrigin = 'top center';
+            tabEl.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
+            tabEl.style.marginTop = '8px';
+
+            let catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
+            catBanner.style.margin = '4px 0 0';
+
+            let bottomRow = document.createElement("div");
+            bottomRow.style.cssText = `display:flex;align-items:center;justify-content:center;gap:16px;padding:12px;flex-shrink:0;`;
+            bottomRow.appendChild(giraLabel);
+            bottomRow.appendChild(smallCanvas);
+
+            wrap.appendChild(tabEl);
+            wrap.appendChild(catBanner);
+            wrap.appendChild(bottomRow);
+        } else {
+            // Layout orizzontale su desktop
+            wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;align-items:stretch;`;
+
+            let leftPanel = document.createElement("div");
+            leftPanel.style.cssText = `flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;`;
+            let tabEl = ruota._buildTabellone();
+            let sc = Math.min(0.68, window.innerWidth * 0.72 / 1100);
+            tabEl.style.transform = `scale(${sc})`;
+            tabEl.style.transformOrigin = 'top center';
+            tabEl.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
+            leftPanel.appendChild(tabEl);
+            leftPanel.appendChild(ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : ''));
+
+            let rightPanel = document.createElement("div");
+            rightPanel.style.cssText = `width:300px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;border-left:1px solid rgba(255,255,255,0.07);`;
+            rightPanel.appendChild(giraLabel);
+            rightPanel.appendChild(smallCanvas);
+
+            wrap.appendChild(leftPanel);
+            wrap.appendChild(rightPanel);
+        }
+
         field.appendChild(wrap);
 
         // Connetti la ruota live al canvas
