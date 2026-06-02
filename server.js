@@ -22,7 +22,7 @@ app.use(express.static(path.join(__dirname)));
 const stanze = {};
 
 function generaCodice() {
-    return Math.random().toString(36).substring(2, 7).toUpperCase();
+    return String(Math.floor(1000 + Math.random() * 9000));
 }
 
 io.on('connection', (socket) => {
