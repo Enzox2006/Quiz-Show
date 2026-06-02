@@ -133,24 +133,38 @@ const ruotaOnline = {
             setTimeout(() => self._broadcastGameState(), 200);
         };
 
-        // ─ 4. _velocissima: ripristina posizioni sincronizzate ─────────
+        // ─ 4. _velocissima: solo host controlla il timer ──────────────
         const orig_velocissima = ruota._velocissima.bind(ruota);
         ruota._velocissima = function () {
             if (ruota._onlineSkipFrase) {
                 const savedPos = ruota._velPosizioniLettere ? [...ruota._velPosizioniLettere] : [];
                 const savedIdx = ruota._velIdx || 0;
                 orig_velocissima();
+                // Ferma il timer locale — solo l'host lo gestisce
+                clearInterval(ruota._termometroTimer);
+                ruota._termometroTimer = null;
                 ruota._velPosizioniLettere = savedPos;
                 ruota._velIdx = savedIdx;
                 ruota._onlineSkipFrase = false;
                 self._fixVelocissimaBtns();
+                if (self.mioIdx === 0) self._startVelTimerHost();
                 return;
             }
             orig_velocissima();
+            // Ferma il timer avviato da orig — l'host usa la versione sincronizzata
+            clearInterval(ruota._termometroTimer);
+            ruota._termometroTimer = null;
             self._fixVelocissimaBtns();
             if (self.mioIdx === 0) {
                 setTimeout(() => self._broadcastGameState('velocissima'), 250);
+                self._startVelTimerHost();
             }
+        };
+
+        // ─ 4b. _velocissima_resumeTimer: solo host ────────────────────
+        ruota._velocissima_resumeTimer = function () {
+            if (self.mioIdx !== 0) return;
+            self._startVelTimerHost();
         };
 
         // ─ 5. _prossimaTriplete: fix bottoni + broadcast ───────────────
@@ -264,6 +278,40 @@ const ruotaOnline = {
                 }, true);
             }
         });
+    },
+
+    // ── Timer velocissima centralizzato (solo host) ─────────────────
+
+    _startVelTimerHost() {
+        const self = this;
+        clearInterval(ruota._termometroTimer);
+        ruota._termometroTimer = setInterval(() => {
+            if (ruota._velIdx >= ruota._velPosizioniLettere.length) {
+                clearInterval(ruota._termometroTimer);
+                ruota._termometroTimer = null;
+                ruota._showToast("Nessuno si è prenotato! Prossima manche.", "#888");
+                let _m = ruota.manche;
+                ruota._queueTimeout(() => ruota._avanzaManche(_m), 2500);
+                return;
+            }
+            let pos = ruota._velPosizioniLettere[ruota._velIdx++];
+            ruota.fraseLettereScoperte[pos] = true;
+            // Broadcast la lettera a tutti gli altri client
+            self.inviaAzione('vel_lettera', {
+                pos,
+                velIdx: ruota._velIdx,
+                fraseLettereScoperte: [...ruota.fraseLettereScoperte]
+            });
+            let tab = document.getElementById("ruota-tabellone");
+            if (tab) tab.replaceWith(ruota._buildTabellone());
+            if (ruota._tutteScoperte()) {
+                clearInterval(ruota._termometroTimer);
+                ruota._termometroTimer = null;
+                ruota._showToast("Nessuno si è prenotato! Prossima manche.", "#888");
+                let _m = ruota.manche;
+                ruota._queueTimeout(() => ruota._avanzaManche(_m), 2500);
+            }
+        }, 2000);
     },
 
     // ── Protocollo velocissima prenota online ───────────────────────
@@ -390,6 +438,11 @@ const ruotaOnline = {
                     break;
                 case 'spin_start':
                     this._renderSpettatoreRuota();
+                    break;
+                case 'vel_lettera':
+                    if (dati.fraseLettereScoperte) ruota.fraseLettereScoperte = dati.fraseLettereScoperte;
+                    if (dati.velIdx !== undefined) ruota._velIdx = dati.velIdx;
+                    { let tab = document.getElementById("ruota-tabellone"); if (tab) tab.replaceWith(ruota._buildTabellone()); }
                     break;
                 case 'prenota_vel':
                     this._gestisciPrenotaVel(dati);
