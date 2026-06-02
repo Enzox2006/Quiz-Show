@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scarica Quiz Show</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: #0d0d2b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow', sans-serif;
+            color: #fff;
+            text-align: center;
+            padding: 24px;
+        }
+        .logo {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(48px, 10vw, 96px);
+            font-weight: 800;
+            color: #ffe600;
+            text-shadow: 0 0 40px rgba(255,230,0,0.4);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: clamp(14px, 3vw, 20px);
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 60px;
+            letter-spacing: 1px;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 48px 40px;
+            max-width: 480px;
+            width: 100%;
+        }
+        .icon { font-size: 64px; margin-bottom: 20px; }
+        .card h2 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .card p {
+            color: rgba(255,255,255,0.55);
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 36px;
+        }
+        #dl-btn {
+            display: inline-block;
+            background: #ffe600;
+            color: #0d0d2b;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            padding: 18px 48px;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.1s, box-shadow 0.2s;
+            box-shadow: 0 0 30px rgba(255,230,0,0.3);
+        }
+        #dl-btn:hover { transform: scale(1.03); box-shadow: 0 0 50px rgba(255,230,0,0.5); }
+        #dl-btn:active { transform: scale(0.98); }
+        #dl-btn:disabled { opacity: 0.6; cursor: wait; transform: none; }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.4);
+            min-height: 20px;
+        }
+        .back-link {
+            margin-top: 40px;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: #ffe600; }
+        .file-list {
+            margin-top: 24px;
+            text-align: left;
+            font-size: 13px;
+            color: rgba(255,255,255,0.3);
+            line-height: 2;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">QUIZ SHOW</div>
+    <div class="subtitle">Avanti un Altro · Cruciverba · Intesa Vincente · Ruota della Fortuna</div>
+
+    <div class="card">
+        <div class="icon">📦</div>
+        <h2>Scarica il progetto</h2>
+        <p>Ottieni tutti i file del gioco in un unico archivio ZIP. Include tutte le ultime modifiche: 7 manche complete, modalità online multiplayer (3 giocatori, Socket.io, turni sincronizzati, ruota live), prenota sincronizzato, manche condivise, mini-gioco raddoppio, spicchi speciali e molto altro.</p>
+        <button id="dl-btn">⬇ SCARICA ZIP</button>
+        <div id="status"></div>
+        <div class="file-list">
+            Include: index.html · sw.js · manifest.json · download.html<br>
+            src/ · img/ · tutti e 4 i giochi · tutte le domande
+        </div>
+    </div>
+
+    <a href="index.html" class="back-link">← Torna alla home</a>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        document.getElementById('dl-btn').addEventListener('click', async function () {
+            const btn = this;
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            btn.textContent = '⏳ Preparando il file...';
+            status.textContent = '';
+            try {
+                const zip = new JSZip();
+                const files = [
+                    'index.html', 'manifest.json', 'sw.js', 'download.html',
+                    'src/domande.js', 'src/domande_cruciverba.js',
+                    'src/domande_intesa.js', 'src/domande_ruota.js',
+                    'src/field.js', 'src/grafica.js', 'src/cruciverba.js',
+                    'src/intesa.js', 'src/ruota.js', 'src/ruota-online.js',
+                    'src/key.js', 'src/main.js', 'src/players.js', 'src/style.css',
+                    'img/background.png', 'img/back.png', 'img/cuboblu.png',
+                    'img/cubogia.png', 'img/cubogrn.png', 'img/cuborux.png',
+                    'img/quizshow.png', 'img/sfera.png'
+                ];
+                let done = 0;
+                for (const f of files) {
+                    status.textContent = `Raccolta file: ${f}`;
+                    const res = await fetch(f, { cache: 'no-store' });
+                    const isImg = /\.(png|jpg|gif|ico)$/i.test(f);
+                    const data = isImg ? await res.arrayBuffer() : await res.text();
+                    zip.file(f, data);
+                    done++;
+                }
+                status.textContent = 'Compressione in corso...';
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'quiz-show.zip';
+                a.click();
+                btn.textContent = '✅ Download avviato!';
+                status.textContent = 'Il file quiz-show.zip è stato scaricato.';
+                setTimeout(() => {
+                    btn.textContent = '⬇ SCARICA ZIP';
+                    btn.disabled = false;
+                    status.textContent = '';
+                }, 4000);
+            } catch (e) {
+                btn.textContent = '❌ Errore — riprova';
+                status.textContent = e.message;
+                btn.disabled = false;
+            }
+        });
+    </script>
+<script src="https://replit-cdn.com/replit-pill/replit-pill.global.js" data-repl-id="1fa1e87b-fb62-4acd-bc32-64f9b1f69aad"></script></body>
+</html>
