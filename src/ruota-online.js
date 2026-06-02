@@ -463,10 +463,21 @@ const ruotaOnline = {
             let ov = document.getElementById("vel-overlay");
             if (ov) ov.remove();
             if (dati.punti !== undefined) ruota.punteggioGioco[dati.idx] = dati.punti;
-            // La manche successiva arriverà via sync_stato
+            // Solo l'host avanza alla manche successiva e broadcast lo stato
+            if (this.mioIdx === 0) {
+                ruota.turnoIniziale = dati.idx;
+                ruota.turno = dati.idx;
+                let _mv = ruota.manche;
+                ruota._queueTimeout(() => ruota._avanzaManche(_mv), 2000);
+            }
         } else if (dati.tipo === 'tutti_eliminati') {
             let ov = document.getElementById("vel-overlay");
             if (ov) ov.remove();
+            // Solo l'host avanza alla manche successiva e broadcast lo stato
+            if (this.mioIdx === 0) {
+                let _mv = ruota.manche;
+                ruota._queueTimeout(() => ruota._avanzaManche(_mv), 2000);
+            }
         } else if (dati.tipo === 'sbagliato') {
             let ov = document.getElementById("vel-overlay");
             if (ov) ov.remove();
