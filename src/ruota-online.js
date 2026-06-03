@@ -7,10 +7,30 @@ const ruotaOnline = {
     _spinCallback: null,
     _patchedRuota: false,
     _lastWheelBroadcast: 0,
+    _sessionActive: false,
+    _tryingReconnect: false,
 
     _connetti() {
         if (this.socket && this.socket.connected) return this.socket;
+        const self = this;
         this.socket = io(window.SOCKET_SERVER_URL || '');
+        // Al (ri)collegamento: tenta riconnessione automatica se c'è una sessione salvata
+        this.socket.on('connect', () => {
+            if (!self._sessionActive) {
+                const raw = localStorage.getItem('ruota_session');
+                if (raw) {
+                    try {
+                        const session = JSON.parse(raw);
+                        if (Date.now() - session.savedAt < 120000) {
+                            self._tryingReconnect = true;
+                            self.socket.emit('riconnetti', { token: session.token, codice: session.codice });
+                        } else {
+                            localStorage.removeItem('ruota_session');
+                        }
+                    } catch (e) { localStorage.removeItem('ruota_session'); }
+                }
+            }
+        });
         this._bindEvents();
         return this.socket;
     },
@@ -19,15 +39,25 @@ const ruotaOnline = {
         const s = this.socket;
         const self = this;
 
-        s.on('stanza_creata', ({ codice, idx, giocatori }) => {
+        s.on('stanza_creata', ({ codice, idx, token, giocatori }) => {
             self.codiceStanza = codice;
             self.mioIdx = idx;
+            self._sessionActive = true;
+            self._tryingReconnect = false;
+            localStorage.setItem('ruota_session', JSON.stringify({
+                token, codice, nome: (giocatori[idx] || {}).nome || '', idx, savedAt: Date.now()
+            }));
             self._renderLobby(giocatori, true);
         });
 
-        s.on('stanza_entrata', ({ codice, idx, giocatori }) => {
+        s.on('stanza_entrata', ({ codice, idx, token, giocatori }) => {
             self.codiceStanza = codice;
             self.mioIdx = idx;
+            self._sessionActive = true;
+            self._tryingReconnect = false;
+            localStorage.setItem('ruota_session', JSON.stringify({
+                token, codice, nome: (giocatori[idx] || {}).nome || '', idx, savedAt: Date.now()
+            }));
             self._renderLobby(giocatori, false);
         });
 
@@ -72,13 +102,66 @@ const ruotaOnline = {
             }
         });
 
-        s.on('errore', ({ msg }) => {
-            ruota._showToast('⚠ ' + msg, '#ff4444');
+        s.on('errore', ({ msg, messaggio }) => {
+            ruota._showToast('⚠ ' + (msg || messaggio || 'Errore'), '#ff4444');
         });
 
-        s.on('giocatore_uscito', ({ giocatori }) => {
-            ruota._showToast('Un giocatore ha abbandonato la stanza.', '#ff8800');
-            self._aggiornaListaLobby(giocatori);
+        // Disconnessione temporanea: periodo di grazia 30s
+        s.on('giocatore_disconnesso', ({ idx, nome }) => {
+            ruota._showToast(`⚠ ${nome} si è disconnesso — 30s per rientrare`, '#ff8800', 3000);
+        });
+
+        // Riconnessione riuscita
+        s.on('giocatore_riconnesso', ({ idx, nome, giocatori }) => {
+            ruota._showToast(`✓ ${nome} si è riconnesso!`, '#22cc66', 2000);
+            if (main.current === 'RuotaLobby') self._aggiornaListaLobby(giocatori);
+        });
+
+        // Grazia scaduta: giocatore definitivamente rimosso
+        s.on('giocatore_rimosso', ({ nome, giocatori }) => {
+            ruota._showToast(`${nome} ha abbandonato la partita.`, '#888888', 2500);
+            if (main.current === 'RuotaLobby') self._aggiornaListaLobby(giocatori);
+        });
+
+        // Riconnessione di questo client riuscita
+        s.on('riconnesso', ({ codice, idx, nome, token, giocatori, partitaIniziata }) => {
+            self.codiceStanza = codice;
+            self.mioIdx = idx;
+            self._sessionActive = true;
+            self._tryingReconnect = false;
+            self.nomiGiocatori = giocatori.map(g => g.nome);
+            // Aggiorna timestamp sessione
+            localStorage.setItem('ruota_session', JSON.stringify({
+                token, codice, nome, idx, savedAt: Date.now()
+            }));
+            if (partitaIniziata) {
+                ruota.nomi = giocatori.map(g => g.nome);
+                if (!self._patchedRuota) { self._patchRuotaPerOnline(); self._patchedRuota = true; }
+                self._renderAttesaRiconnessione();
+                // Chiedi lo stato corrente agli altri giocatori
+                self.socket.emit('richiedi_sync');
+            } else {
+                self._renderLobby(giocatori, idx === 0);
+            }
+        });
+
+        // Riconnessione fallita (grazia scaduta o sessione inesistente)
+        s.on('riconnessione_fallita', ({ motivo }) => {
+            self._clearSession();
+            self._tryingReconnect = false;
+            if (!motivo) return; // sessione già attiva: ignora silenziosamente
+            if (main.current === 'RuotaRiconnessione') {
+                ruota._showToast('Impossibile riconnettersi: ' + motivo, '#ff4444', 3000);
+                ruotaOnline.mostraSceltaModalita();
+            }
+            // Altrimenti silenzioso — l'utente è già su home/lobby
+        });
+
+        // Qualcuno richiede lo stato: risponde chiunque sia in partita
+        s.on('richiedi_sync', () => {
+            if (self.mioIdx >= 0 && main.current !== 'RuotaRiconnessione' && ruota.fraseCorrente) {
+                setTimeout(() => self._broadcastGameState(), 150);
+            }
         });
     },
 
@@ -643,6 +726,37 @@ const ruotaOnline = {
         }
     },
 
+    // ── Gestione sessione locale ─────────────────────────────────────
+
+    _clearSession() {
+        localStorage.removeItem('ruota_session');
+        this._sessionActive = false;
+    },
+
+    _renderAttesaRiconnessione() {
+        grafica.puliscifield();
+        if (!document.getElementById('ro-spin-keyframe')) {
+            let st = document.createElement('style');
+            st.id = 'ro-spin-keyframe';
+            st.textContent = '@keyframes ro-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+            document.head.appendChild(st);
+        }
+        let wrap = document.createElement('div');
+        wrap.style.cssText = `position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;background:rgba(5,0,20,0.98);`;
+        let ic = document.createElement('div');
+        ic.innerHTML = '⟳';
+        ic.style.cssText = `font-size:100px;color:#f0c800;line-height:1;animation:ro-spin 1.2s linear infinite;display:inline-block;`;
+        let msg = document.createElement('div');
+        msg.innerHTML = 'RICONNESSIONE IN CORSO…';
+        msg.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:800;letter-spacing:5px;color:rgba(255,255,255,0.6);text-align:center;`;
+        let sub = document.createElement('div');
+        sub.innerHTML = 'Il gioco riprenderà automaticamente.';
+        sub.style.cssText = `font-family:'Barlow',sans-serif;font-size:22px;color:rgba(255,255,255,0.25);text-align:center;`;
+        wrap.appendChild(ic); wrap.appendChild(msg); wrap.appendChild(sub);
+        field.appendChild(wrap);
+        main.current = 'RuotaRiconnessione';
+    },
+
     inviaAzione(tipo, dati) {
         if (!this.socket) return;
         this.socket.emit('azione', { tipo, dati });
@@ -1088,6 +1202,7 @@ const ruotaOnline = {
     mostraSceltaModalita() {
         grafica.puliscifield();
         grafica._statusBar("← TORNA AL MENU", "RUOTA DELLA FORTUNA", () => {
+            ruotaOnline._clearSession();
             grafica.puliscifield();
             grafica.home();
             main.current = "Home";
