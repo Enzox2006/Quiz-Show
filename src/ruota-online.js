@@ -947,8 +947,9 @@ const ruotaOnline = {
         grafica._statusBar("● ONLINE", "RUOTA DELLA FORTUNA", () => {});
 
         const self = this;
-        const W   = window.innerWidth;
-        const H   = window.innerHeight;
+        // Usa le coordinate VIRTUALI del field (1920 × fieldHeight)
+        const W   = fieldWidth;   // sempre 1920
+        const H   = fieldHeight;  // adattato all'aspect ratio reale
         const avH = H - 64;
 
         const nomeGiocante = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
@@ -991,76 +992,40 @@ const ruotaOnline = {
             return el;
         };
 
-        let smallCanvas;
+        // Il field è sempre landscape (field.js mostra "ruota dispositivo" in portrait)
+        // W = fieldWidth = 1920, H = fieldHeight (dipende dall'aspect ratio reale)
+
+        // Split: 60% tabellone sinistra / 40% ruota destra
+        const rightW = Math.round(W * 0.40);  // ~768px
+        const leftW  = W - rightW;            // ~1152px
+        const pad    = 20;
+
+        const tabMaxW = leftW - pad * 2;
+        const tabMaxH = Math.round(avH * 0.80);
+        const { clip: tabClip } = makeTabClipper(tabMaxW, tabMaxH);
+
+        const catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
+        catBanner.style.cssText += 'flex-shrink:0;margin-top:10px;';
+
+        const leftPanel = document.createElement("div");
+        leftPanel.style.cssText = `flex:0 0 ${leftW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${pad}px;gap:0;overflow:hidden;box-sizing:border-box;`;
+        leftPanel.appendChild(tabClip);
+        leftPanel.appendChild(catBanner);
+
+        // Ruota: si adatta al pannello destro, max 80% altezza
+        const wheelDiam = Math.min(rightW - 30, Math.round(avH * 0.80));
+        let smallCanvas = makeWheel(wheelDiam);
+
+        const labelFs = Math.max(24, Math.min(48, Math.round(rightW / 14)));
+        const rightPanel = document.createElement("div");
+        rightPanel.style.cssText = `flex:0 0 ${rightW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:16px 12px;border-left:1px solid rgba(255,255,255,0.07);overflow:hidden;box-sizing:border-box;`;
+        rightPanel.appendChild(makeLabel(labelFs));
+        rightPanel.appendChild(smallCanvas);
+
         const wrap = document.createElement("div");
-        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;overflow:hidden;`;
-
-        if (H > W) {
-            // ─── PORTRAIT MOBILE: colonna centrata ───────────────────
-            //   [tabClipper]  ← scala tutta la larghezza
-            //   [catBanner]
-            //   [label | ruota]  ← riga in basso
-
-            const pad    = 10;
-            const tabMaxW = W - pad * 2;
-            // Riserva ~40% altezza per la riga label+ruota
-            const tabMaxH = Math.round(avH * 0.50);
-            const { clip: tabClip, sh: tabSH } = makeTabClipper(tabMaxW, tabMaxH);
-
-            const catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
-            catBanner.style.cssText += 'flex-shrink:0;';
-
-            // Ruota: prende lo spazio rimasto (altezza - tabellone - banner - label)
-            const remainH  = avH - tabSH - 34 - 40 - pad * 2; // approssimato
-            const wheelDiam = Math.max(70, Math.min(Math.round(W * 0.46), remainH));
-            smallCanvas = makeWheel(wheelDiam);
-
-            const labelFs = Math.max(16, Math.min(24, Math.round(W / 16)));
-            const bottomRow = document.createElement("div");
-            bottomRow.style.cssText = `display:flex;align-items:center;justify-content:center;gap:14px;flex-shrink:0;`;
-            bottomRow.appendChild(makeLabel(labelFs));
-            bottomRow.appendChild(smallCanvas);
-
-            wrap.style.cssText += `display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:${pad}px;box-sizing:border-box;`;
-            wrap.appendChild(tabClip);
-            wrap.appendChild(catBanner);
-            wrap.appendChild(bottomRow);
-
-        } else {
-            // ─── LANDSCAPE / TABLET / PC: riga, due pannelli ─────────
-            //   [leftPanel: tabClipper + catBanner]  |  [rightPanel: label + ruota]
-
-            // Split: tabellone 60% / ruota 40%
-            const rightW = Math.round(W * 0.40);
-            const leftW  = W - rightW;
-            const pad    = 14;
-
-            const tabMaxW = leftW - pad * 2;
-            const tabMaxH = Math.round(avH * 0.78);
-            const { clip: tabClip } = makeTabClipper(tabMaxW, tabMaxH);
-
-            const catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
-            catBanner.style.cssText += 'flex-shrink:0;margin-top:8px;';
-
-            const leftPanel = document.createElement("div");
-            leftPanel.style.cssText = `flex:0 0 ${leftW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${pad}px;gap:0;overflow:hidden;box-sizing:border-box;`;
-            leftPanel.appendChild(tabClip);
-            leftPanel.appendChild(catBanner);
-
-            // Ruota: si adatta al pannello destro
-            const wheelDiam = Math.min(rightW - 20, Math.round(avH * 0.70));
-            smallCanvas = makeWheel(wheelDiam);
-
-            const labelFs = Math.max(16, Math.min(28, Math.round(rightW / 9)));
-            const rightPanel = document.createElement("div");
-            rightPanel.style.cssText = `flex:0 0 ${rightW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px 10px;border-left:1px solid rgba(255,255,255,0.07);overflow:hidden;box-sizing:border-box;`;
-            rightPanel.appendChild(makeLabel(labelFs));
-            rightPanel.appendChild(smallCanvas);
-
-            wrap.style.cssText += `display:flex;flex-direction:row;align-items:stretch;`;
-            wrap.appendChild(leftPanel);
-            wrap.appendChild(rightPanel);
-        }
+        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;overflow:hidden;display:flex;flex-direction:row;align-items:stretch;`;
+        wrap.appendChild(leftPanel);
+        wrap.appendChild(rightPanel);
 
         field.appendChild(wrap);
 
