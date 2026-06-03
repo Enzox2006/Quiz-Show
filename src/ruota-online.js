@@ -413,81 +413,52 @@ const ruotaOnline = {
         // Broadcast: sto prenotando
         this.inviaAzione('prenota_vel', { tipo: 'prenota', idx: playerIdx });
 
-        // Mostra overlay con input (versione online)
-        let overlay = document.createElement("div");
-        overlay.id = "vel-overlay";
-        overlay.style.cssText = `position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,0,24,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:500;padding:16px 80px;`;
-        let titolo = document.createElement("div");
-        titolo.innerHTML = `${ruota._nomeG(playerIdx)} &mdash; DAI LA SOLUZIONE`;
-        titolo.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;color:${ruota.COLORS[playerIdx]};letter-spacing:3px;`;
-        let tabEl = ruota._buildTabellone();
-        let sc = Math.min(0.68, window.innerWidth * 0.78 / 1100);
-        tabEl.style.transform = `scale(${sc})`;
-        tabEl.style.transformOrigin = 'top center';
-        tabEl.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
-        let inp = document.createElement("input");
-        inp.type = "text"; inp.placeholder = "Scrivi la frase...";
-        inp.style.cssText = `background:rgba(255,255,255,0.07);border:2px solid ${ruota.COLORS[playerIdx]}88;border-radius:14px;padding:24px 36px;font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:700;color:white;outline:none;width:100%;box-sizing:border-box;text-transform:uppercase;`;
-        let btnRow = document.createElement("div");
-        btnRow.style.cssText = `display:flex;gap:20px;width:100%;`;
-        let okBtn = document.createElement("button");
-        okBtn.innerHTML = "✓ CONFERMA";
-        okBtn.style.cssText = `flex:2;background:rgba(34,204,102,0.12);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:22px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:800;cursor:pointer;`;
-        let annullaBtn = document.createElement("button");
-        annullaBtn.innerHTML = "← ANNULLA";
-        annullaBtn.style.cssText = `flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:22px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:700;cursor:pointer;`;
-
         const self = this;
 
-        annullaBtn.addEventListener('click', () => {
-            overlay.remove();
-            self.inviaAzione('prenota_vel', { tipo: 'annulla', velIdx: ruota._velIdx });
-            ruota._velocissima_resumeTimer();
-        });
-
-        const doCheck = () => {
-            let risposta = inp.value.trim().toUpperCase();
-            let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
-            if (risposta === corretta) {
-                ruota.punteggioGioco[playerIdx] += 1000;
-                ruota.turnoIniziale = playerIdx; ruota.turno = playerIdx;
-                overlay.remove();
-                ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, "#22cc66");
-                self.inviaAzione('prenota_vel', { tipo: 'ok', idx: playerIdx, punti: ruota.punteggioGioco[playerIdx] });
-                let _mv = ruota.manche;
-                ruota._queueTimeout(() => ruota._avanzaManche(_mv), 2000);
-            } else {
-                ruota._termometroEliminate.push(playerIdx);
-                ruota._showToast("Sbagliato!", "#ff4444");
-                self.inviaAzione('prenota_vel', {
-                    tipo: 'sbagliato',
-                    idx: playerIdx,
-                    velIdx: ruota._velIdx,
-                    eliminate: [...ruota._termometroEliminate]
-                });
-                ruota._queueTimeout(() => {
-                    overlay.remove();
-                    let btn = document.getElementById(`vel-btn-${playerIdx}`);
-                    if (btn) { btn.style.opacity = '0.25'; btn.style.pointerEvents = 'none'; }
-                    if (ruota._termometroEliminate.length >= 3) {
-                        ruota._showToast("Tutti eliminati! Prossima manche.", "#888");
-                        let _mv2 = ruota.manche;
-                        ruota._queueTimeout(() => ruota._avanzaManche(_mv2), 2000);
-                        self.inviaAzione('prenota_vel', { tipo: 'tutti_eliminati' });
-                    } else {
-                        ruota._velocissima_resumeTimer();
-                    }
-                }, 1400);
+        ruota._buildVKSoluzione({
+            titolo: `${ruota._nomeG(playerIdx)} &mdash; DAI LA SOLUZIONE`,
+            colore: ruota.COLORS[playerIdx],
+            overlayId: 'vel-overlay',
+            posFixed: false,
+            containerEl: field,
+            annullaTesto: '← ANNULLA',
+            onAnnulla: () => {
+                self.inviaAzione('prenota_vel', { tipo: 'annulla', velIdx: ruota._velIdx });
+                ruota._velocissima_resumeTimer();
+            },
+            onConferma: (risposta) => {
+                let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
+                if (risposta === corretta) {
+                    ruota.punteggioGioco[playerIdx] += 1000;
+                    ruota.turnoIniziale = playerIdx; ruota.turno = playerIdx;
+                    ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, "#22cc66");
+                    self.inviaAzione('prenota_vel', { tipo: 'ok', idx: playerIdx, punti: ruota.punteggioGioco[playerIdx] });
+                    let _mv = ruota.manche;
+                    ruota._queueTimeout(() => ruota._avanzaManche(_mv), 2000);
+                } else {
+                    ruota._termometroEliminate.push(playerIdx);
+                    ruota._showToast("Sbagliato!", "#ff4444");
+                    self.inviaAzione('prenota_vel', {
+                        tipo: 'sbagliato',
+                        idx: playerIdx,
+                        velIdx: ruota._velIdx,
+                        eliminate: [...ruota._termometroEliminate]
+                    });
+                    ruota._queueTimeout(() => {
+                        let btn = document.getElementById(`vel-btn-${playerIdx}`);
+                        if (btn) { btn.style.opacity = '0.25'; btn.style.pointerEvents = 'none'; }
+                        if (ruota._termometroEliminate.length >= 3) {
+                            ruota._showToast("Tutti eliminati! Prossima manche.", "#888");
+                            let _mv2 = ruota.manche;
+                            ruota._queueTimeout(() => ruota._avanzaManche(_mv2), 2000);
+                            self.inviaAzione('prenota_vel', { tipo: 'tutti_eliminati' });
+                        } else {
+                            ruota._velocissima_resumeTimer();
+                        }
+                    }, 1400);
+                }
             }
-        };
-
-        okBtn.addEventListener('click', doCheck);
-        inp.addEventListener('keydown', e => { if (e.key === 'Enter') doCheck(); });
-        btnRow.appendChild(okBtn); btnRow.appendChild(annullaBtn);
-        overlay.appendChild(titolo); overlay.appendChild(tabEl); overlay.appendChild(inp); overlay.appendChild(btnRow);
-        field.appendChild(overlay);
-        ruota._applyMobileKeyboardFix(overlay, tabEl);
-        setTimeout(() => inp.focus(), 80);
+        });
     },
 
     _mostraAttesaVelocissima(idx) {
