@@ -221,6 +221,11 @@ input[type="number"]::-webkit-outer-spin-button {
     transform: none;
 }
 
+@keyframes vkBlink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+}
+
 /* --- OTTIMIZZAZIONE TESTI PER MOBILE --- */
 @media (max-width: 600px) {
     h1 {
