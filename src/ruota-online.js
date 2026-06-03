@@ -951,113 +951,113 @@ const ruotaOnline = {
         const H   = window.innerHeight;
         const avH = H - 64;
 
-        let nomeGiocante = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
-        let colore = ruota.COLORS[ruota.turno];
+        const nomeGiocante = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
+        const colore = ruota.COLORS[ruota.turno];
 
-        // Dimensioni naturali del tabellone
-        const tabNatW = 14 * ruota.CELL_W + 13 * ruota.CELL_GAP; // 1269px
-        const tabNatH = 4  * ruota.CELL_H + 3  * ruota.CELL_GAP; // 343px
+        // ── Dimensioni naturali tabellone ─────────────────────────────
+        const tabNatW = 14 * ruota.CELL_W + 13 * ruota.CELL_GAP;
+        const tabNatH = 4  * ruota.CELL_H + 3  * ruota.CELL_GAP;
 
-        // Costruttore label giocatore (riutilizzato nei due layout)
-        const makeLabel = (fs) => {
-            let el = document.createElement("div");
-            el.innerHTML =
-                `<strong style="color:${colore}">${nomeGiocante}</strong><br>` +
-                `<span style="font-size:${Math.round(fs*0.58)}px;color:rgba(255,255,255,0.42)">sta girando la ruota</span>`;
-            el.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:${fs}px;font-weight:700;text-align:center;line-height:1.35;`;
-            return el;
-        };
-
-        // ── Helper: scala tabellone con margini negativi per collassare lo spazio ──
-        const makeTab = (maxW, maxH) => {
-            let sc = Math.min(maxW / tabNatW, maxH / tabNatH, 0.99);
-            let el = ruota._buildTabellone();
-            el.style.transform       = `scale(${sc})`;
+        // ── Clipper: contiene il tabellone scalato con dimensioni corrette
+        //    Il parent vede solo tabScaledW × tabScaledH — zero spazio fantasma
+        const makeTabClipper = (maxW, maxH) => {
+            const sc = Math.min(maxW / tabNatW, maxH / tabNatH, 0.99);
+            const sw = Math.round(tabNatW * sc);
+            const sh = Math.round(tabNatH * sc);
+            const clip = document.createElement("div");
+            clip.style.cssText = `width:${sw}px;height:${sh}px;overflow:hidden;flex-shrink:0;`;
+            const el = ruota._buildTabellone();
+            el.style.transform = `scale(${sc})`;
             el.style.transformOrigin = 'top left';
-            el.style.marginRight     = `${(sc - 1) * tabNatW}px`;   // negativo
-            el.style.marginBottom    = `${(sc - 1) * tabNatH}px`;   // negativo
-            el.style.flexShrink      = '0';
-            return { el, sc, w: Math.round(tabNatW * sc), h: Math.round(tabNatH * sc) };
+            clip.appendChild(el);
+            return { clip, sw, sh };
         };
 
-        // ── Helper: canvas ruota ──────────────────────────────────────
+        // ── Canvas ruota ──────────────────────────────────────────────
         const makeWheel = (diam) => {
-            let c = document.createElement("canvas");
+            const c = document.createElement("canvas");
             c.width = diam * 2; c.height = diam * 2;
             c.style.cssText = `width:${diam}px;height:${diam}px;flex-shrink:0;`;
             return c;
         };
 
-        let wrap = document.createElement("div");
-        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;overflow:hidden;`;
+        // ── Label giocatore ───────────────────────────────────────────
+        const makeLabel = (fs) => {
+            const el = document.createElement("div");
+            el.innerHTML =
+                `<strong style="color:${colore}">${nomeGiocante}</strong><br>` +
+                `<span style="font-size:${Math.round(fs * 0.58)}px;color:rgba(255,255,255,0.42)">sta girando la ruota</span>`;
+            el.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:${fs}px;font-weight:700;text-align:center;line-height:1.35;flex-shrink:0;`;
+            return el;
+        };
 
         let smallCanvas;
+        const wrap = document.createElement("div");
+        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;overflow:hidden;`;
 
-        const isPortrait = H > W;   // portrait = layout verticale
+        if (H > W) {
+            // ─── PORTRAIT MOBILE: colonna centrata ───────────────────
+            //   [tabClipper]  ← scala tutta la larghezza
+            //   [catBanner]
+            //   [label | ruota]  ← riga in basso
 
-        if (isPortrait) {
-            // ── LAYOUT VERTICALE (portrait mobile) ───────────────────
-            // Tabellone occupa tutta la larghezza, ruota + label sotto
-            const pad = 12;
+            const pad    = 10;
             const tabMaxW = W - pad * 2;
-            // Lascia il 38% dell'altezza per ruota + label
-            const tabMaxH = Math.round(avH * 0.52);
-            const { el: tabEl, h: tabH } = makeTab(tabMaxW, tabMaxH);
+            // Riserva ~40% altezza per la riga label+ruota
+            const tabMaxH = Math.round(avH * 0.50);
+            const { clip: tabClip, sh: tabSH } = makeTabClipper(tabMaxW, tabMaxH);
 
-            let catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
-            catBanner.style.cssText += 'margin:6px 0 0;align-self:center;';
+            const catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
+            catBanner.style.cssText += 'flex-shrink:0;';
 
-            // Ruota: si adatta allo spazio rimasto
-            const usedH = tabH + 28 + 32; // tabellone + banner + label
-            const wheelDiam = Math.min(W * 0.52, Math.round(avH - usedH - 20));
-            smallCanvas = makeWheel(Math.max(80, wheelDiam));
+            // Ruota: prende lo spazio rimasto (altezza - tabellone - banner - label)
+            const remainH  = avH - tabSH - 34 - 40 - pad * 2; // approssimato
+            const wheelDiam = Math.max(70, Math.min(Math.round(W * 0.46), remainH));
+            smallCanvas = makeWheel(wheelDiam);
 
-            const labelFs = Math.max(16, Math.min(26, Math.round(W / 14)));
-            let bottomRow = document.createElement("div");
-            bottomRow.style.cssText = `display:flex;align-items:center;justify-content:center;gap:16px;padding:0 12px;flex-shrink:0;`;
+            const labelFs = Math.max(16, Math.min(24, Math.round(W / 16)));
+            const bottomRow = document.createElement("div");
+            bottomRow.style.cssText = `display:flex;align-items:center;justify-content:center;gap:14px;flex-shrink:0;`;
             bottomRow.appendChild(makeLabel(labelFs));
             bottomRow.appendChild(smallCanvas);
 
-            wrap.style.display         = 'flex';
-            wrap.style.flexDirection   = 'column';
-            wrap.style.alignItems      = 'center';
-            wrap.style.justifyContent  = 'center';
-            wrap.style.gap             = '0';
-            wrap.style.padding         = `${pad}px`;
-            wrap.style.boxSizing       = 'border-box';
-            wrap.appendChild(tabEl);
+            wrap.style.cssText += `display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:${pad}px;box-sizing:border-box;`;
+            wrap.appendChild(tabClip);
             wrap.appendChild(catBanner);
             wrap.appendChild(bottomRow);
 
         } else {
-            // ── LAYOUT ORIZZONTALE (landscape / tablet / PC) ─────────
-            // Split: 58% tabellone, 42% ruota
-            const rightW = Math.round(W * 0.42);
+            // ─── LANDSCAPE / TABLET / PC: riga, due pannelli ─────────
+            //   [leftPanel: tabClipper + catBanner]  |  [rightPanel: label + ruota]
+
+            // Split: tabellone 60% / ruota 40%
+            const rightW = Math.round(W * 0.40);
             const leftW  = W - rightW;
-            const hPad   = 12;
+            const pad    = 14;
 
-            const tabMaxW = leftW - hPad * 2;
-            const tabMaxH = Math.round(avH * 0.68);
-            const { el: tabEl, h: tabH } = makeTab(tabMaxW, tabMaxH);
+            const tabMaxW = leftW - pad * 2;
+            const tabMaxH = Math.round(avH * 0.78);
+            const { clip: tabClip } = makeTabClipper(tabMaxW, tabMaxH);
 
-            let catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
-            catBanner.style.cssText += 'margin:8px 0 0;';
+            const catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
+            catBanner.style.cssText += 'flex-shrink:0;margin-top:8px;';
 
-            let leftPanel = document.createElement("div");
-            leftPanel.style.cssText = `position:absolute;top:0;left:0;width:${leftW}px;bottom:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:${hPad}px;box-sizing:border-box;overflow:hidden;`;
-            leftPanel.appendChild(tabEl);
+            const leftPanel = document.createElement("div");
+            leftPanel.style.cssText = `flex:0 0 ${leftW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${pad}px;gap:0;overflow:hidden;box-sizing:border-box;`;
+            leftPanel.appendChild(tabClip);
             leftPanel.appendChild(catBanner);
 
-            // Ruota: max 90% della larghezza destra, max 74% altezza
-            const wheelDiam = Math.min(rightW - 16, Math.round(avH * 0.74));
+            // Ruota: si adatta al pannello destro
+            const wheelDiam = Math.min(rightW - 20, Math.round(avH * 0.70));
             smallCanvas = makeWheel(wheelDiam);
 
-            const labelFs = Math.max(16, Math.min(30, Math.round(rightW / 8)));
-            let rightPanel = document.createElement("div");
-            rightPanel.style.cssText = `position:absolute;top:0;right:0;width:${rightW}px;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px 8px;border-left:1px solid rgba(255,255,255,0.07);box-sizing:border-box;overflow:hidden;`;
+            const labelFs = Math.max(16, Math.min(28, Math.round(rightW / 9)));
+            const rightPanel = document.createElement("div");
+            rightPanel.style.cssText = `flex:0 0 ${rightW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px 10px;border-left:1px solid rgba(255,255,255,0.07);overflow:hidden;box-sizing:border-box;`;
             rightPanel.appendChild(makeLabel(labelFs));
             rightPanel.appendChild(smallCanvas);
 
+            wrap.style.cssText += `display:flex;flex-direction:row;align-items:stretch;`;
             wrap.appendChild(leftPanel);
             wrap.appendChild(rightPanel);
         }
@@ -1078,7 +1078,7 @@ const ruotaOnline = {
             animating = false;
             self._liveWheelCanvas = null;
             ruota._lastRotation = rotazioneFinale;
-            let sp = ruota.SPICCHI[spiccioIdx];
+            const sp = ruota.SPICCHI[spiccioIdx];
             ruota._dopoRuota(sp, spiccioIdx);
         });
     },
