@@ -972,72 +972,68 @@ const ruotaOnline = {
         grafica._statusBar("● ONLINE", "RUOTA DELLA FORTUNA", () => {});
 
         const self = this;
-        const isMobile = window.innerWidth < 680;
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const avH = H - 64; // sotto la status bar
 
         let nomeGiocante = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
         let colore = ruota.COLORS[ruota.turno];
 
-        let giraLabel = document.createElement("div");
-        giraLabel.innerHTML = `<strong style="color:${colore}">${nomeGiocante}</strong><br><span style="font-size:${isMobile ? 16 : 22}px;color:rgba(255,255,255,0.45)">sta girando la ruota</span>`;
-        giraLabel.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:${isMobile ? 22 : 30}px;font-weight:700;text-align:center;line-height:1.4;`;
+        // ── Dimensioni pannelli ────────────────────────────────────────
+        // Pannello destro: 40% larghezza; sinistra: 60%
+        const rightW = Math.round(W * 0.40);
+        const leftW  = W - rightW;
 
-        let sz = isMobile ? 140 : 280;
+        // Ruota: cerchio intero, max diameter = min(rightW-28, avH*0.72)
+        const wheelDiam = Math.min(rightW - 28, Math.round(avH * 0.72));
+        const wheelPx   = wheelDiam;   // dimensione CSS
+        const wheelRes  = wheelDiam * 2; // risoluzione canvas
+
         let smallCanvas = document.createElement("canvas");
-        smallCanvas.width = sz * 2; smallCanvas.height = sz * 2;
-        smallCanvas.style.cssText = `width:${sz}px;height:${sz}px;`;
+        smallCanvas.width  = wheelRes;
+        smallCanvas.height = wheelRes;
+        smallCanvas.style.cssText = `width:${wheelPx}px;height:${wheelPx}px;border-radius:50%;flex-shrink:0;`;
 
+        // ── Tabellone (pannello sinistro) ──────────────────────────────
+        const tabW = 14 * ruota.CELL_W + 13 * ruota.CELL_GAP; // 1269px
+        const tabH = 4  * ruota.CELL_H + 3  * ruota.CELL_GAP; // 343px
+        const sc   = Math.min(0.96, (leftW - 24) / tabW);
+
+        let tabEl = ruota._buildTabellone();
+        tabEl.style.transform       = `scale(${sc})`;
+        tabEl.style.transformOrigin = 'top center';
+        tabEl.style.marginBottom    = Math.round((sc - 1) * tabH) + 'px';
+        tabEl.style.flexShrink      = '0';
+
+        let catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
+        catBanner.style.cssText += 'margin:6px 0 0;';
+
+        let leftPanel = document.createElement("div");
+        leftPanel.style.cssText = `width:${leftW}px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 8px;gap:0;overflow:hidden;`;
+        leftPanel.appendChild(tabEl);
+        leftPanel.appendChild(catBanner);
+
+        // ── Info giocatore + ruota (pannello destro) ───────────────────
+        let nomeFontSize = Math.max(18, Math.min(32, Math.round(rightW / 9)));
+        let giraLabel = document.createElement("div");
+        giraLabel.innerHTML = `<strong style="color:${colore};font-size:${nomeFontSize}px">${nomeGiocante}</strong><br><span style="font-size:${Math.round(nomeFontSize*0.62)}px;color:rgba(255,255,255,0.45)">sta girando la ruota</span>`;
+        giraLabel.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-weight:700;text-align:center;line-height:1.4;flex-shrink:0;`;
+
+        let rightPanel = document.createElement("div");
+        rightPanel.style.cssText = `width:${rightW}px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px 10px;border-left:1px solid rgba(255,255,255,0.07);`;
+        rightPanel.appendChild(giraLabel);
+        rightPanel.appendChild(smallCanvas);
+
+        // ── Layout orizzontale unico ───────────────────────────────────
         let wrap = document.createElement("div");
-
-        if (isMobile) {
-            // Layout verticale su mobile: tabellone sopra, ruota sotto
-            wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;overflow:hidden;`;
-
-            let tabEl = ruota._buildTabellone();
-            let sc = Math.min(0.92, window.innerWidth * 0.92 / 1100);
-            tabEl.style.transform = `scale(${sc})`;
-            tabEl.style.transformOrigin = 'top center';
-            tabEl.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
-            tabEl.style.marginTop = '8px';
-
-            let catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
-            catBanner.style.margin = '4px 0 0';
-
-            let bottomRow = document.createElement("div");
-            bottomRow.style.cssText = `display:flex;align-items:center;justify-content:center;gap:16px;padding:12px;flex-shrink:0;`;
-            bottomRow.appendChild(giraLabel);
-            bottomRow.appendChild(smallCanvas);
-
-            wrap.appendChild(tabEl);
-            wrap.appendChild(catBanner);
-            wrap.appendChild(bottomRow);
-        } else {
-            // Layout orizzontale su desktop
-            wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;align-items:stretch;`;
-
-            let leftPanel = document.createElement("div");
-            leftPanel.style.cssText = `flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;`;
-            let tabEl = ruota._buildTabellone();
-            let sc = Math.min(0.68, window.innerWidth * 0.72 / 1100);
-            tabEl.style.transform = `scale(${sc})`;
-            tabEl.style.transformOrigin = 'top center';
-            tabEl.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
-            leftPanel.appendChild(tabEl);
-            leftPanel.appendChild(ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : ''));
-
-            let rightPanel = document.createElement("div");
-            rightPanel.style.cssText = `width:300px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;border-left:1px solid rgba(255,255,255,0.07);`;
-            rightPanel.appendChild(giraLabel);
-            rightPanel.appendChild(smallCanvas);
-
-            wrap.appendChild(leftPanel);
-            wrap.appendChild(rightPanel);
-        }
-
+        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:row;align-items:center;overflow:hidden;`;
+        wrap.appendChild(leftPanel);
+        wrap.appendChild(rightPanel);
         field.appendChild(wrap);
 
-        // Connetti la ruota live al canvas
-        self._liveWheelCanvas = smallCanvas;
-        self._liveWheelRotation = ruota._lastRotation;
+        // ── Animazione ruota live ──────────────────────────────────────
+        self._liveWheelCanvas    = smallCanvas;
+        self._liveWheelRotation  = ruota._lastRotation;
 
         let animating = true;
         const animateSmall = () => {
