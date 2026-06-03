@@ -579,7 +579,7 @@ const crux = {
         rec.lang = 'it-IT';
         rec.continuous = true;
         rec.interimResults = true;
-        rec.maxAlternatives = 3;
+        rec.maxAlternatives = 5;
 
         rec.onstart = () => {
             this._ascoltando = true;
@@ -591,14 +591,28 @@ const crux = {
             let dom = this.domande[this.idx - 1];
             if (!dom) return;
             let sol = this._norm(dom.sol);
+            if (!sol) return;
 
             for (let i = e.resultIndex; i < e.results.length; i++) {
-                // Controlla tutte le alternative (finale e intermedia)
+                let isFinal = e.results[i].isFinal;
                 for (let j = 0; j < e.results[i].length; j++) {
-                    let detto = this._norm(e.results[i][j].transcript);
-                    if (detto === sol || detto.includes(sol)) {
+                    let raw = e.results[i][j].transcript;
+
+                    // Controlla la trascrizione intera normalizzata
+                    let detto = this._norm(raw);
+                    if (this._matchesSolution(detto, sol, isFinal)) {
                         crux._confermaCorrecto();
                         return;
+                    }
+
+                    // Controlla ogni singola parola (gestisce "il PAROLA", "un PAROLA", ecc.)
+                    let parole = raw.trim().split(/\s+/);
+                    for (let parola of parole) {
+                        let normParola = this._norm(parola);
+                        if (normParola.length >= 3 && this._matchesSolution(normParola, sol, isFinal)) {
+                            crux._confermaCorrecto();
+                            return;
+                        }
                     }
                 }
             }
@@ -608,16 +622,18 @@ const crux = {
             if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
                 if (this._voiceStatusEl) this._voiceStatusEl.innerHTML = "🎤 Microfono non autorizzato";
             }
+            // no-speech e altri errori vengono gestiti da onend con riavvio automatico
         };
 
         rec.onend = () => {
             this._ascoltando = false;
-            if (main.current === 'CruciGioco') {
+            // Riavvia solo se questo è ancora il riconoscimento attivo (non fermato da _fermaVoce)
+            if (main.current === 'CruciGioco' && this._recognition === rec) {
                 setTimeout(() => {
-                    if (main.current === 'CruciGioco') {
-                        try { rec.start(); } catch (e) {}
+                    if (main.current === 'CruciGioco' && this._recognition === rec) {
+                        this._avviaVoce();
                     }
-                }, 400);
+                }, 300);
             }
         };
 
@@ -625,6 +641,38 @@ const crux = {
             rec.start();
         } catch (e) {}
         this._recognition = rec;
+    },
+
+    // Matching flessibile: esatto, contains, o fuzzy (solo su risultati finali)
+    _matchesSolution(testo, sol, isFinal) {
+        if (!testo || !sol) return false;
+        if (testo === sol || testo.includes(sol)) return true;
+        if (isFinal) {
+            // Fuzzy: tolleranza errori in base alla lunghezza della soluzione
+            let maxDist = sol.length <= 5 ? 1 : sol.length <= 9 ? 2 : 3;
+            if (this._levenshtein(testo, sol) <= maxDist) return true;
+            // L'utente ha detto una versione abbreviata di una parola lunga
+            if (testo.length >= 4 && sol.startsWith(testo) && testo.length >= sol.length - 2) return true;
+        }
+        return false;
+    },
+
+    // Distanza di Levenshtein per il fuzzy matching
+    _levenshtein(a, b) {
+        if (Math.abs(a.length - b.length) > 4) return 99;
+        let m = a.length, n = b.length;
+        let prev = Array.from({length: n + 1}, (_, j) => j);
+        let curr = new Array(n + 1);
+        for (let i = 1; i <= m; i++) {
+            curr[0] = i;
+            for (let j = 1; j <= n; j++) {
+                curr[j] = a[i-1] === b[j-1]
+                    ? prev[j-1]
+                    : 1 + Math.min(prev[j], curr[j-1], prev[j-1]);
+            }
+            [prev, curr] = [curr, prev];
+        }
+        return prev[n];
     },
 
     _fermaVoce() {
