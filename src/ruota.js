@@ -923,6 +923,7 @@ const ruota = {
         btnRow.appendChild(okBtn); btnRow.appendChild(annullaBtn);
         overlay.appendChild(titolo); overlay.appendChild(tabElVel); overlay.appendChild(inp); overlay.appendChild(btnRow);
         field.appendChild(overlay);
+        ruota._applyMobileKeyboardFix(overlay, tabElVel);
         setTimeout(()=>inp.focus(),80);
     },
 
@@ -1665,6 +1666,7 @@ const ruota = {
         btnRow.appendChild(confermaBtn); btnRow.appendChild(backBtn);
         overlay.appendChild(titolo); overlay.appendChild(hint); overlay.appendChild(tabClone); overlay.appendChild(inp); overlay.appendChild(btnRow);
         document.body.appendChild(overlay);
+        ruota._applyMobileKeyboardFix(overlay, tabClone);
         setTimeout(()=>inp.focus(),80);
     },
 
@@ -1898,6 +1900,7 @@ const ruota = {
         btnRow.appendChild(okBtn); btnRow.appendChild(annullaBtn);
         overlay.appendChild(titolo); overlay.appendChild(tabElTri); overlay.appendChild(inp); overlay.appendChild(btnRow);
         field.appendChild(overlay);
+        ruota._applyMobileKeyboardFix(overlay, tabElTri);
         setTimeout(()=>inp.focus(),80);
     },
 
@@ -2185,6 +2188,25 @@ const ruota = {
         t.style.cssText=`position:fixed;bottom:56px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.93);border:2px solid ${color};color:${color};border-radius:14px;padding:18px 56px;font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;letter-spacing:3px;z-index:9999;white-space:nowrap;`;
         document.body.appendChild(t);
         setTimeout(()=>{if(t.parentNode)t.remove();},2800);
+    },
+
+    // ── Fix tastiera mobile: nasconde il tabellone quando la tastiera appare ──
+    _applyMobileKeyboardFix(overlay, tabElement) {
+        if (!window.visualViewport) return;
+        const baseH = window.visualViewport.height;
+        const handler = () => {
+            if (!overlay.isConnected) { window.visualViewport.removeEventListener('resize', handler); return; }
+            const vv = window.visualViewport;
+            const kbOpen = vv.height < baseH * 0.75;
+            if (tabElement) tabElement.style.display = kbOpen ? 'none' : '';
+            const isFixed = overlay.style.position === 'fixed' || getComputedStyle(overlay).position === 'fixed';
+            if (isFixed) {
+                overlay.style.height = vv.height + 'px';
+                overlay.style.top = Math.round(vv.offsetTop || 0) + 'px';
+                overlay.style.bottom = 'auto';
+            }
+        };
+        window.visualViewport.addEventListener('resize', handler);
     },
 
     // ── Se la Sai Raddoppi — Bonus Mini-Gioco ──────────────────────
@@ -2496,6 +2518,7 @@ const ruota = {
         btnRow.appendChild(confermaBtn); btnRow.appendChild(backBtn);
         overlay.appendChild(titolo); overlay.appendChild(tabClone); overlay.appendChild(inp); overlay.appendChild(btnRow);
         document.body.appendChild(overlay);
+        ruota._applyMobileKeyboardFix(overlay, tabClone);
         setTimeout(() => inp.focus(), 80);
     },
 
