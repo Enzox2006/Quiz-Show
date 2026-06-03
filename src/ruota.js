@@ -952,52 +952,165 @@ const ruota = {
         grafica._statusBar("← TORNA AL MENU","RUOTA DELLA FORTUNA",()=>{
             ruota.reset(); grafica.puliscifield(); grafica.home(); main.current="Home";
         });
-        let wrap=document.createElement("div");
-        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;`;
+
+        const W   = window.innerWidth;
+        const H   = window.innerHeight;
+        const avH = H - 64;         // sotto status bar
+        const isPortrait = H > W;
+
+        // Dimensioni naturali tabellone
+        const tabNatW = 14 * this.CELL_W + 13 * this.CELL_GAP;
+        const tabNatH = 4  * this.CELL_H + 3  * this.CELL_GAP;
+
+        // Helper: tabellone scalato con margini negativi (zero spazio fantasma)
+        const makeTab = (maxW, maxH) => {
+            let sc = Math.min(maxW / tabNatW, maxH / tabNatH, 0.99);
+            let el = this._buildTabellone();
+            el.style.transform       = `scale(${sc})`;
+            el.style.transformOrigin = 'top left';
+            el.style.marginRight     = `${(sc - 1) * tabNatW}px`;
+            el.style.marginBottom    = `${(sc - 1) * tabNatH}px`;
+            el.style.flexShrink      = '0';
+            return el;
+        };
+
+        let wrap = document.createElement("div");
+        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;overflow:hidden;`;
         wrap.appendChild(this._buildScoresBar(false));
 
-        let center=document.createElement("div");
-        center.style.cssText=`flex:1;display:flex;min-height:0;`;
+        // Info turno (usata in entrambi i layout)
+        const makeTurnoInfo = (fs) => {
+            let d = document.createElement("div");
+            d.style.cssText = `text-align:center;flex-shrink:0;`;
+            let lbl = document.createElement("div");
+            lbl.innerHTML = "TURNO DI";
+            lbl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:${Math.round(fs*0.42)}px;letter-spacing:4px;color:rgba(255,255,255,0.3);`;
+            let nome = document.createElement("div");
+            nome.innerHTML = this._nomeTurno();
+            nome.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:${fs}px;font-weight:800;color:${this.COLORS[this.turno]};letter-spacing:2px;`;
+            d.appendChild(lbl); d.appendChild(nome);
+            return d;
+        };
 
-        let leftPanel=document.createElement("div");
-        leftPanel.style.cssText=`flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 24px;gap:12px;min-width:0;`;
-        if (this._expressTurn) {
-            let exRiq = this._buildExpressRiquadro();
-            exRiq.style.alignSelf = 'flex-start';
-            leftPanel.appendChild(exRiq);
+        let center = document.createElement("div");
+        center.style.cssText = `flex:1;display:flex;min-height:0;overflow:hidden;`;
+
+        if (isPortrait) {
+            // ── PORTRAIT MOBILE: layout verticale ──────────────────────
+            // [tabellone + categoria] sopra, [ruota semicirc + pulsanti] sotto
+            const scoresH  = 54;
+            const innerH   = avH - scoresH;
+            const tabMaxW  = W - 16;
+            const tabMaxH  = Math.round(innerH * 0.42);
+            const tabEl    = makeTab(tabMaxW, tabMaxH);
+            const cat      = this._buildCatBanner(this.fraseCorrente ? this.fraseCorrente.categoria : '');
+            cat.style.cssText += 'flex-shrink:0;';
+
+            let topPanel = document.createElement("div");
+            topPanel.style.cssText = `display:flex;flex-direction:column;align-items:flex-start;padding:8px 8px 0;gap:6px;flex-shrink:0;`;
+            if (this._expressTurn) topPanel.appendChild(this._buildExpressRiquadro());
+            if (this._mancheJackpot) topPanel.appendChild(this._buildSalvadanaio());
+            topPanel.appendChild(tabEl);
+            topPanel.appendChild(cat);
+
+            // Pannello bottom: turno + semicerchio + pulsanti
+            const bottomH = innerH - tabMaxH - 14;
+            // Semicerchio: larghezza = min(W, bottomH*2)
+            const wheelW  = Math.min(W, Math.round(bottomH * 1.6));
+            const wheelH  = Math.round(wheelW / 2);
+            let wheelWrapG = document.createElement("div");
+            wheelWrapG.style.cssText = `position:relative;overflow:hidden;width:${wheelW}px;height:${wheelH}px;flex-shrink:0;`;
+            let canvas = document.createElement("canvas");
+            canvas.width = wheelW * 2; canvas.height = wheelW * 2;
+            canvas.style.cssText = `position:absolute;top:0;left:0;width:${wheelW}px;height:${wheelW}px;`;
+            this._disegnaRuota(canvas, 0);
+            wheelWrapG.appendChild(canvas);
+
+            const btnFs   = Math.max(18, Math.min(30, Math.round(W / 14)));
+            const btnPadV = Math.max(10, Math.round(btnFs * 0.55));
+            let azioniEl  = this._buildAzioniCompact(btnFs, btnPadV);
+
+            let bottomPanel = document.createElement("div");
+            bottomPanel.style.cssText = `flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;gap:6px;padding:4px 12px 8px;`;
+            bottomPanel.appendChild(makeTurnoInfo(Math.max(18, Math.round(W / 12))));
+            bottomPanel.appendChild(wheelWrapG);
+            bottomPanel.appendChild(azioniEl);
+
+            center.style.flexDirection = 'column';
+            center.appendChild(topPanel);
+            center.appendChild(bottomPanel);
+
+        } else {
+            // ── LANDSCAPE / TABLET / PC: layout orizzontale ────────────
+            const rightW  = Math.min(520, Math.round(W * 0.38));
+            const leftW   = W - rightW;
+            const scoresH = 54;
+            const innerH  = avH - scoresH;
+
+            const tabMaxW = leftW - 32;
+            const tabMaxH = Math.round(innerH * 0.72);
+            const tabEl   = makeTab(tabMaxW, tabMaxH);
+            const cat     = this._buildCatBanner(this.fraseCorrente ? this.fraseCorrente.categoria : '');
+
+            let leftPanel = document.createElement("div");
+            leftPanel.style.cssText = `flex:0 0 ${leftW}px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:12px 16px;gap:10px;overflow:hidden;box-sizing:border-box;`;
+            if (this._expressTurn) leftPanel.appendChild(this._buildExpressRiquadro());
+            if (this._mancheJackpot) leftPanel.appendChild(this._buildSalvadanaio());
+            leftPanel.appendChild(tabEl);
+            leftPanel.appendChild(cat);
+
+            let rightPanel = document.createElement("div");
+            rightPanel.style.cssText = `flex:0 0 ${rightW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 16px;gap:10px;border-left:1px solid rgba(255,255,255,0.07);overflow:hidden;box-sizing:border-box;`;
+            rightPanel.appendChild(makeTurnoInfo(Math.min(32, Math.round(rightW / 14))));
+
+            // Semicerchio ruota
+            const wheelW  = rightW - 24;
+            const wheelH  = Math.round(wheelW / 2);
+            let wheelWrapG = document.createElement("div");
+            wheelWrapG.style.cssText = `position:relative;overflow:hidden;width:${wheelW}px;height:${wheelH}px;flex-shrink:0;`;
+            let canvas = document.createElement("canvas");
+            canvas.width = wheelW * 2; canvas.height = wheelW * 2;
+            canvas.style.cssText = `position:absolute;top:0;left:0;width:${wheelW}px;height:${wheelW}px;`;
+            this._disegnaRuota(canvas, 0);
+            wheelWrapG.appendChild(canvas);
+            rightPanel.appendChild(wheelWrapG);
+            rightPanel.appendChild(this._buildAzioni());
+
+            center.appendChild(leftPanel);
+            center.appendChild(rightPanel);
         }
-        if (this._mancheJackpot) leftPanel.appendChild(this._buildSalvadanaio());
-        leftPanel.appendChild(this._buildTabellone());
-        leftPanel.appendChild(this._buildCatBanner(this.fraseCorrente ? this.fraseCorrente.categoria : ''));
 
-        let rightPanel=document.createElement("div");
-        rightPanel.style.cssText=`width:560px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 20px;gap:12px;border-left:1px solid rgba(255,255,255,0.07);`;
+        wrap.appendChild(center);
+        field.appendChild(wrap);
+    },
 
-        let turnoInfo=document.createElement("div");
-        turnoInfo.style.cssText=`text-align:center;`;
-        let turnoLabel=document.createElement("div");
-        turnoLabel.innerHTML="TURNO DI";
-        turnoLabel.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:16px;letter-spacing:5px;color:rgba(255,255,255,0.3);`;
-        let turnoNome=document.createElement("div");
-        turnoNome.innerHTML=this._nomeTurno();
-        turnoNome.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;color:${this.COLORS[this.turno]};letter-spacing:2px;`;
-        turnoInfo.appendChild(turnoLabel); turnoInfo.appendChild(turnoNome);
-        rightPanel.appendChild(turnoInfo);
-
-        // Mezza ruota (solo semicerchio superiore)
-        let wheelWrapG=document.createElement("div");
-        wheelWrapG.style.cssText=`position:relative;overflow:hidden;width:480px;height:240px;flex-shrink:0;`;
-        let canvas=document.createElement("canvas");
-        canvas.width=640;canvas.height=640;
-        canvas.style.cssText=`position:absolute;top:0;left:0;width:480px;height:480px;`;
-        this._disegnaRuota(canvas,0);
-        wheelWrapG.appendChild(canvas);
-        rightPanel.appendChild(wheelWrapG);
-
-        rightPanel.appendChild(this._buildAzioni());
-
-        center.appendChild(leftPanel); center.appendChild(rightPanel);
-        wrap.appendChild(center); field.appendChild(wrap);
+    // Versione compatta dei pulsanti azione per portrait mobile
+    _buildAzioniCompact(fs, padV) {
+        let wrap = document.createElement("div");
+        wrap.style.cssText = `display:flex;flex-direction:column;gap:8px;width:100%;`;
+        let canBuyVocal   = this.punteggioRound[this.turno] >= 500;
+        let tutteConsRiv  = this._tutteConsonantiRivelate();
+        let tutteVocRiv   = this._tutteVocaliRivelate();
+        const mk = (label, bg, color, onClick, disabled) => {
+            let btn = document.createElement("button");
+            btn.innerHTML = label;
+            btn.style.cssText = `width:100%;padding:${padV}px 16px;background:${bg};color:${color};border:2px solid rgba(255,255,255,0.13);border-radius:14px;font-family:'Barlow Condensed',sans-serif;font-size:${fs}px;font-weight:800;letter-spacing:2px;text-align:left;cursor:pointer;opacity:${disabled?'0.28':'1'};pointer-events:${disabled?'none':'auto'};`;
+            btn.addEventListener('click', onClick);
+            return btn;
+        };
+        wrap.appendChild(mk("🎡  GIRA LA RUOTA","#f0c800","#1a0a3c",()=>ruota._giraRuota(),this.attesaLettera||this._expressTurn||tutteConsRiv));
+        if (this._expressTurn && !this.attesaLettera)
+            wrap.appendChild(mk("🚄  CHIAMA CONSONANTE","rgba(123,47,190,0.18)","#c084fc",()=>ruota._apriChiamataLettera(false),false));
+        wrap.appendChild(mk(`🔤  VOCALE · 500 €`,"rgba(255,255,255,0.07)","rgba(255,255,255,0.7)",()=>ruota._apriCompraVocale(),!canBuyVocal||this.attesaLettera||tutteVocRiv));
+        wrap.appendChild(mk("💡  DAI LA SOLUZIONE","rgba(34,204,102,0.1)","#22cc66",()=>ruota._apriSoluzione(),false));
+        if (this.manche === 6 && !this.faseGong) {
+            let gongBtn = document.createElement("button");
+            gongBtn.innerHTML = "🔔 &nbsp; GONG — FASE FINALE";
+            gongBtn.style.cssText = `width:100%;padding:${padV}px 16px;background:rgba(240,60,0,0.15);color:#ff6633;border:2px solid rgba(240,60,0,0.55);border-radius:14px;font-family:'Barlow Condensed',sans-serif;font-size:${fs}px;font-weight:800;letter-spacing:2px;cursor:pointer;text-align:left;`;
+            gongBtn.addEventListener('click', ()=>ruota._giraRuotaFinale());
+            wrap.appendChild(gongBtn);
+        }
+        return wrap;
     },
 
     _buildAzioni() {
