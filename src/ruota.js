@@ -1,7 +1,7 @@
 const ruota = {
 
     // ── Costanti ───────────────────────────────────────────────────
-    CELL_W: 86, CELL_H: 82, CELL_GAP: 5,
+    CELL_W: 90, CELL_H: 86, CELL_GAP: 6,
     CELL_RANGES: [{s:1,n:12},{s:0,n:14},{s:0,n:14},{s:1,n:12}],
     COLORS: ['#ff4466','#4488ff','#22cc88'],
 
@@ -410,7 +410,7 @@ const ruota = {
                         cell.style.background = '#f4f4f4';
                         cell.style.border = '3px solid #c0c0c0';
                         cell.style.fontFamily = "'Barlow Condensed',sans-serif";
-                        cell.style.fontSize = '48px'; cell.style.fontWeight = '800';
+                        cell.style.fontSize = '52px'; cell.style.fontWeight = '800';
                         cell.style.color = '#111111';
                         cell.textContent = ch;
                     } else {
@@ -1407,7 +1407,7 @@ const ruota = {
         wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;padding:10px 16px 8px;overflow:hidden;box-sizing:border-box;`;
         let tabEl=this._buildTabellone();
         let tabW = 14*this.CELL_W + 13*this.CELL_GAP;
-        let tabScale=Math.min(0.82, (window.innerWidth-24)*0.96/tabW);
+        let tabScale=Math.min(1.0, (window.innerWidth-24)*0.96/tabW);
         tabEl.style.transform=`scale(${tabScale})`;
         tabEl.style.transformOrigin='top center';
         tabEl.style.marginBottom=Math.round((tabScale-1)*(4*this.CELL_H+3*this.CELL_GAP)*0.72)+'px';
