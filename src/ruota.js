@@ -1583,7 +1583,7 @@ const ruota = {
 
     // ── Soluzione come overlay (tabellone visibile) ─────────────────
     // ── Schermata Soluzione con Tastiera Virtuale ─────────────────
-    _buildVKSoluzione({ titolo, colore, subtitolo, overlayId, posFixed, containerEl, annullaTesto, onConferma, onAnnulla }) {
+    _buildVKSoluzione({ titolo, colore, subtitolo, overlayId, posFixed, containerEl, annullaTesto, onConferma, onAnnulla, onLetterTyped }) {
         const frase = (this.fraseCorrente?.frase || '').toUpperCase();
         const scoperte = this.fraseLettereScoperte || [];
         const isBlank = (i) => !scoperte[i] && /^[A-Z]$/.test(frase[i]);
@@ -1625,42 +1625,7 @@ const ruota = {
         let disp = document.createElement("div");
         disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:5px 14px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
 
-        const CS = `clamp(28px,5vw,50px)`;
-        const CF = `clamp(20px,3.8vw,38px)`;
-
-        const redraw = () => {
-            disp.innerHTML = '';
-            let i = 0;
-            while (i < frase.length) {
-                if (frase[i] === ' ') {
-                    let sp = document.createElement("div");
-                    sp.style.cssText = `width:16px;flex-shrink:0;`;
-                    disp.appendChild(sp); i++;
-                } else {
-                    let word = document.createElement("div");
-                    word.style.cssText = `display:flex;gap:4px;align-items:flex-end;`;
-                    while (i < frase.length && frase[i] !== ' ') {
-                        let cell = document.createElement("div");
-                        let blank = ans[i] === null;
-                        let pre = !isBlank(i);
-                        let isCur = (i === cur);
-                        cell.style.cssText = `width:${CS};height:${CS};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:${CF};font-weight:800;border-bottom:3px solid ${pre?'rgba(255,255,255,0.15)':isCur?colore:'rgba(255,255,255,0.45)'};color:${pre?'rgba(255,255,255,0.32)':blank?'rgba(255,255,255,0.25)':'white'};box-sizing:border-box;flex-shrink:0;`;
-                        if (blank) {
-                            if (isCur) {
-                                cell.innerHTML = `<span style="color:${colore};animation:vkBlink 0.9s step-end infinite">▮</span>`;
-                            } else {
-                                cell.textContent = '·';
-                            }
-                        } else {
-                            cell.textContent = ans[i];
-                        }
-                        word.appendChild(cell); i++;
-                    }
-                    disp.appendChild(word);
-                }
-            }
-        };
-        redraw();
+        ruota._renderSolDisplay(disp, ans, cur, colore, true);
         ov.appendChild(disp);
 
         const addLtr = (l) => {
@@ -1668,12 +1633,18 @@ const ruota = {
             ans[cur] = l;
             let prev = cur;
             cur = ans.findIndex((c, j) => j > prev && c === null);
-            redraw();
+            ruota._renderSolDisplay(disp, ans, cur, colore, true);
+            if (onLetterTyped) onLetterTyped([...ans], cur);
         };
         const doBack = () => {
             let from = cur === -1 ? frase.length - 1 : cur - 1;
             for (let j = from; j >= 0; j--) {
-                if (isBlank(j) && ans[j] !== null) { ans[j] = null; cur = j; redraw(); return; }
+                if (isBlank(j) && ans[j] !== null) {
+                    ans[j] = null; cur = j;
+                    ruota._renderSolDisplay(disp, ans, cur, colore, true);
+                    if (onLetterTyped) onLetterTyped([...ans], cur);
+                    return;
+                }
             }
         };
 
@@ -1727,6 +1698,44 @@ const ruota = {
         document.addEventListener('keydown', docKH);
         containerEl.appendChild(ov);
         return ov;
+    },
+
+    // ── Render riga soluzione (riutilizzato da schermata attiva e waiting) ──
+    _renderSolDisplay(container, ansArr, curIdx, colore, blink) {
+        const frase = (this.fraseCorrente?.frase || '').toUpperCase();
+        const scoperte = this.fraseLettereScoperte || [];
+        const isBlank = (i) => !scoperte[i] && /^[A-Z]$/.test(frase[i]);
+        const CS = `clamp(28px,5vw,50px)`;
+        const CF = `clamp(20px,3.8vw,38px)`;
+        container.innerHTML = '';
+        let i = 0;
+        while (i < frase.length) {
+            if (frase[i] === ' ') {
+                let sp = document.createElement("div");
+                sp.style.cssText = `width:16px;flex-shrink:0;`;
+                container.appendChild(sp); i++;
+            } else {
+                let word = document.createElement("div");
+                word.style.cssText = `display:flex;gap:4px;align-items:flex-end;`;
+                while (i < frase.length && frase[i] !== ' ') {
+                    let cell = document.createElement("div");
+                    let val = ansArr ? ansArr[i] : null;
+                    let blank = val === null;
+                    let pre = !isBlank(i);
+                    let isCur = (i === curIdx);
+                    cell.style.cssText = `width:${CS};height:${CS};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:${CF};font-weight:800;border-bottom:3px solid ${pre?'rgba(255,255,255,0.15)':isCur?colore:'rgba(255,255,255,0.45)'};color:${pre?'rgba(255,255,255,0.32)':blank?'rgba(255,255,255,0.25)':'white'};box-sizing:border-box;flex-shrink:0;`;
+                    if (blank && isCur) {
+                        cell.innerHTML = blink
+                            ? `<span style="color:${colore};animation:vkBlink 0.9s step-end infinite">▮</span>`
+                            : `<span style="color:${colore}">▮</span>`;
+                    } else {
+                        cell.textContent = blank ? '·' : val;
+                    }
+                    word.appendChild(cell); i++;
+                }
+                container.appendChild(word);
+            }
+        }
     },
 
     _apriSoluzione(onCorretta, onSbagliata) {
