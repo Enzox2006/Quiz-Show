@@ -1,5 +1,8 @@
 const grafica = {
     puliscifield() {
+        // Rimuove il toast prima di cambiare schermo, così non sopravvive al nuovo stato
+        let toast = document.getElementById('ruota-toast');
+        if (toast) toast.remove();
         while (field.firstChild) {
             field.removeChild(field.firstChild);
         }
