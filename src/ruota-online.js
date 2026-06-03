@@ -271,10 +271,13 @@ const ruotaOnline = {
                     }, 1200);
                 } else {
                     // BANCAROTTA/PASSA/JACKPOT: torna a gioco e aspetta sync
+                    // Sopprimiamo il broadcast perché lo stato verrà inviato dal giocatore attivo
                     setTimeout(() => {
                         if (main.current === 'RuotaSpin') {
                             grafica.puliscifield();
+                            ruota._onlineSoppressiAzioni = true;
                             ruota._renderGioco();
+                            ruota._onlineSoppressiAzioni = false;
                             main.current = 'RuotaGioco';
                         }
                     }, 1200);
@@ -650,7 +653,7 @@ const ruotaOnline = {
     // ── Serializzazione e broadcast stato ───────────────────────────
 
     _broadcastGameState(schermata) {
-        if (!this.socket || this.mioIdx !== 0) return;
+        if (!this.socket) return;
         // Determina schermata automaticamente se non specificata
         let sch = schermata;
         if (!sch) {
