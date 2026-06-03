@@ -1594,30 +1594,39 @@ const ruota = {
 
         let ov = document.createElement("div");
         ov.id = overlayId || 'soluzione-overlay';
-        ov.style.cssText = `position:${posFixed?'fixed':'absolute'};top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.96);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;z-index:8000;padding:12px 14px 16px;overflow-y:auto;box-sizing:border-box;`;
+        ov.style.cssText = `position:${posFixed?'fixed':'absolute'};top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:8000;padding:14px 16px;box-sizing:border-box;overflow-y:auto;`;
 
+        // Titolo giocatore — usa stessa classe della schermata consonanti
         let titEl = document.createElement("div");
         titEl.innerHTML = titolo;
-        titEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:clamp(20px,4vw,38px);font-weight:800;letter-spacing:3px;color:${colore};text-align:center;flex-shrink:0;`;
+        titEl.className = 'ruota-lettera-titolo';
+        titEl.style.cssText += `color:${colore};letter-spacing:3px;font-size:clamp(18px,3.2vw,34px);flex-shrink:0;`;
         ov.appendChild(titEl);
 
-        if (subtitolo) {
-            let sub = document.createElement("div");
-            sub.innerHTML = subtitolo;
-            sub.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:19px;color:rgba(255,255,255,0.38);flex-shrink:0;text-align:center;`;
-            ov.appendChild(sub);
-        }
-
+        // Tabellone — stessa formula di scala della schermata consonanti
         let tab = this._buildTabellone();
-        let sc = Math.min(0.68, window.innerWidth * 0.78 / 1100);
+        let tabNW = 14 * this.CELL_W + 13 * this.CELL_GAP;
+        let tabNH = 4  * this.CELL_H + 3  * this.CELL_GAP;
+        let sc = Math.min(1.0, (window.innerWidth - 32) / tabNW);
         tab.style.transform = `scale(${sc})`;
         tab.style.transformOrigin = 'top center';
-        tab.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
+        tab.style.marginBottom = Math.round((sc - 1) * tabNH) + 'px';
         tab.style.flexShrink = '0';
         ov.appendChild(tab);
 
+        // Banner categoria (identico alla schermata consonanti)
+        if (this.fraseCorrente?.categoria) {
+            let cat = this._buildCatBanner(this.fraseCorrente.categoria);
+            cat.style.cssText += 'margin:0;padding:6px 40px;font-size:clamp(18px,2.2vw,24px);flex-shrink:0;';
+            ov.appendChild(cat);
+        }
+
+        // Riga soluzione — caselle grandi, leggibili
         let disp = document.createElement("div");
-        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:4px 12px;padding:4px 8px;max-width:100%;flex-shrink:0;`;
+        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:5px 14px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
+
+        const CS = `clamp(28px,5vw,50px)`;
+        const CF = `clamp(20px,3.8vw,38px)`;
 
         const redraw = () => {
             disp.innerHTML = '';
@@ -1625,17 +1634,17 @@ const ruota = {
             while (i < frase.length) {
                 if (frase[i] === ' ') {
                     let sp = document.createElement("div");
-                    sp.style.cssText = `width:14px;flex-shrink:0;`;
+                    sp.style.cssText = `width:16px;flex-shrink:0;`;
                     disp.appendChild(sp); i++;
                 } else {
                     let word = document.createElement("div");
-                    word.style.cssText = `display:flex;gap:3px;align-items:flex-end;`;
+                    word.style.cssText = `display:flex;gap:4px;align-items:flex-end;`;
                     while (i < frase.length && frase[i] !== ' ') {
                         let cell = document.createElement("div");
                         let blank = ans[i] === null;
                         let pre = !isBlank(i);
                         let isCur = (i === cur);
-                        cell.style.cssText = `width:clamp(22px,3.6vw,42px);height:clamp(26px,4.2vw,44px);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:clamp(15px,2.8vw,30px);font-weight:800;border-bottom:2px solid ${pre?'rgba(255,255,255,0.15)':isCur?colore:'rgba(255,255,255,0.4)'};color:${pre?'rgba(255,255,255,0.3)':blank?'rgba(255,255,255,0.22)':'white'};box-sizing:border-box;flex-shrink:0;`;
+                        cell.style.cssText = `width:${CS};height:${CS};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:${CF};font-weight:800;border-bottom:3px solid ${pre?'rgba(255,255,255,0.15)':isCur?colore:'rgba(255,255,255,0.45)'};color:${pre?'rgba(255,255,255,0.32)':blank?'rgba(255,255,255,0.25)':'white'};box-sizing:border-box;flex-shrink:0;`;
                         if (blank) {
                             if (isCur) {
                                 cell.innerHTML = `<span style="color:${colore};animation:vkBlink 0.9s step-end infinite">▮</span>`;
