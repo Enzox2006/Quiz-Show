@@ -486,6 +486,7 @@ const ruotaOnline = {
         btnRow.appendChild(okBtn); btnRow.appendChild(annullaBtn);
         overlay.appendChild(titolo); overlay.appendChild(tabEl); overlay.appendChild(inp); overlay.appendChild(btnRow);
         field.appendChild(overlay);
+        ruota._applyMobileKeyboardFix(overlay, tabEl);
         setTimeout(() => inp.focus(), 80);
     },
 
