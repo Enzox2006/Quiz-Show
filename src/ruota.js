@@ -952,9 +952,10 @@ const ruota = {
         grafica._statusBar("← TORNA AL MENU","RUOTA DELLA FORTUNA",()=>{
             ruota.reset(); grafica.puliscifield(); grafica.home(); main.current="Home";
         });
-        const W = window.innerWidth;
-        // Pannello destra: 560px su PC, max 46% su schermi stretti
-        const rightW = Math.min(560, Math.round(W * 0.46));
+        // Usa coordinate virtuali del field (1920px fisso, scalato via CSS)
+        const W = fieldWidth;  // 1920
+        // Pannello destra: 560px virtuali (=29% di 1920), stesso dell'originale
+        const rightW = 560;
         const wheelW = rightW - 40;
         const wheelH = Math.round(wheelW / 2);
 
