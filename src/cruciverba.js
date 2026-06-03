@@ -551,9 +551,9 @@ const crux = {
             setTimeout(() => {
                 timerEl.style.color = '';
                 timerEl.style.textShadow = '';
-            }, 500);
+            }, 300);
         }
-        setTimeout(() => crux._cambioTurno(), 600);
+        setTimeout(() => crux._cambioTurno(), 350);
     },
 
     _cambioTurno() {
@@ -577,9 +577,14 @@ const crux = {
         this._fermaVoce();
         let rec = new SR();
         rec.lang = 'it-IT';
-        rec.continuous = true;
+        // continuous:false è molto più affidabile su mobile (Android/iOS fermano il continuous dopo pochi secondi)
+        rec.continuous = false;
         rec.interimResults = true;
         rec.maxAlternatives = 5;
+
+        // CRITICO: assegna PRIMA di start() — evita la race condition dove onend scatta
+        // prima dell'assegnazione e il guard this._recognition === rec fallisce per sempre
+        this._recognition = rec;
 
         rec.onstart = () => {
             this._ascoltando = true;
@@ -621,26 +626,31 @@ const crux = {
         rec.onerror = (ev) => {
             if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
                 if (this._voiceStatusEl) this._voiceStatusEl.innerHTML = "🎤 Microfono non autorizzato";
+                // Non riavviare se il microfono è negato
+                this._recognition = null;
             }
-            // no-speech e altri errori vengono gestiti da onend con riavvio automatico
+            // Tutti gli altri errori (no-speech, network, aborted…) vengono gestiti da onend
         };
 
         rec.onend = () => {
             this._ascoltando = false;
-            // Riavvia solo se questo è ancora il riconoscimento attivo (non fermato da _fermaVoce)
+            // Riavvia solo se questo rec è ancora quello attivo (non sostituito da _fermaVoce)
             if (main.current === 'CruciGioco' && this._recognition === rec) {
+                // 150ms: abbastanza lungo da evitare "already started", abbastanza corto da non perdere parole
                 setTimeout(() => {
                     if (main.current === 'CruciGioco' && this._recognition === rec) {
                         this._avviaVoce();
                     }
-                }, 300);
+                }, 150);
             }
         };
 
         try {
             rec.start();
-        } catch (e) {}
-        this._recognition = rec;
+        } catch (e) {
+            // Se start() fallisce, azzera per permettere il prossimo tentativo
+            this._recognition = null;
+        }
     },
 
     // Matching flessibile: esatto, contains, o fuzzy (solo su risultati finali)
