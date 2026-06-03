@@ -731,46 +731,21 @@ const ruotaOnline = {
             });
         }
 
-        // Aggiorna / crea banner
-        // Sulla schermata lettere/vocale: barra compatta nella status bar, non in fondo
+        // Nessun banner in fondo — il turno è già visibile nel pannello destra
+        // Sulla schermata lettere/vocale: chip compatto nella status bar
         const isLetterScreen = main.current === 'RuotaLettera' || main.current === 'RuotaVocale';
-        let banner = document.getElementById('online-turno-banner');
-        if (!isMio) {
+        let chip = document.getElementById('online-turno-chip');
+        if (!isMio && isLetterScreen) {
             const nomeAttivo = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
             const colore = ruota.COLORS[ruota.turno];
-            if (isLetterScreen) {
-                // Rimuovi il banner grande e mostra solo un chip nella status bar
-                if (banner) banner.remove();
-                let chip = document.getElementById('online-turno-chip');
-                if (!chip) {
-                    chip = document.createElement('div');
-                    chip.id = 'online-turno-chip';
-                    chip.style.cssText = `position:fixed;top:12px;right:90px;background:rgba(10,0,30,0.88);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:4px 14px;z-index:9999;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);white-space:nowrap;`;
-                    document.body.appendChild(chip);
-                }
-                chip.innerHTML = `Turno: <strong style="color:${colore}">${nomeAttivo}</strong>`;
-            } else {
-                let chip = document.getElementById('online-turno-chip');
-                if (chip) chip.remove();
-                if (!banner) {
-                    banner = document.createElement('div');
-                    banner.id = 'online-turno-banner';
-                    banner.style.cssText = `
-                        position:fixed;bottom:0;left:0;right:0;
-                        background:rgba(10,0,30,0.94);
-                        border-top:2px solid rgba(255,255,255,0.1);
-                        padding:18px;text-align:center;z-index:8888;
-                        font-family:'Barlow Condensed',sans-serif;
-                        font-size:28px;font-weight:700;letter-spacing:3px;
-                        color:rgba(255,255,255,0.55);
-                    `;
-                    document.body.appendChild(banner);
-                }
-                banner.innerHTML = `È il turno di <strong style="color:${colore}">${nomeAttivo}</strong>...`;
+            if (!chip) {
+                chip = document.createElement('div');
+                chip.id = 'online-turno-chip';
+                chip.style.cssText = `position:fixed;top:12px;right:90px;background:rgba(10,0,30,0.88);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:4px 14px;z-index:9999;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);white-space:nowrap;`;
+                document.body.appendChild(chip);
             }
+            chip.innerHTML = `Turno: <strong style="color:${colore}">${nomeAttivo}</strong>`;
         } else {
-            if (banner) banner.remove();
-            let chip = document.getElementById('online-turno-chip');
             if (chip) chip.remove();
         }
     },
@@ -972,59 +947,64 @@ const ruotaOnline = {
         grafica._statusBar("● ONLINE", "RUOTA DELLA FORTUNA", () => {});
 
         const self = this;
-        const W = window.innerWidth;
-        const H = window.innerHeight;
-        const avH = H - 64; // sotto la status bar
+        const W  = window.innerWidth;
+        const H  = window.innerHeight;
+        const avH = H - 64;
 
         let nomeGiocante = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
         let colore = ruota.COLORS[ruota.turno];
 
-        // ── Dimensioni pannelli ────────────────────────────────────────
-        // Pannello destro: 40% larghezza; sinistra: 60%
+        // ── Calcolo dimensioni ─────────────────────────────────────────
+        // Split 60% sinistra (tabellone) / 40% destra (ruota)
         const rightW = Math.round(W * 0.40);
         const leftW  = W - rightW;
 
-        // Ruota: cerchio intero, max diameter = min(rightW-28, avH*0.72)
-        const wheelDiam = Math.min(rightW - 28, Math.round(avH * 0.72));
-        const wheelPx   = wheelDiam;   // dimensione CSS
-        const wheelRes  = wheelDiam * 2; // risoluzione canvas
+        // Tabellone: scala per riempire il 60% della larghezza
+        const tabNatW = 14 * ruota.CELL_W + 13 * ruota.CELL_GAP; // 1269px
+        const tabNatH = 4  * ruota.CELL_H + 3  * ruota.CELL_GAP; // 343px
+        const sc = Math.min(0.98, (leftW - 16) / tabNatW);
+        const tabScaledW = Math.round(tabNatW * sc);
+        const tabScaledH = Math.round(tabNatH * sc);
+
+        let tabEl = ruota._buildTabellone();
+        tabEl.style.transform       = `scale(${sc})`;
+        tabEl.style.transformOrigin = 'top left';
+        // Wrapper con le dimensioni post-scala (evita spazio fantasma)
+        let tabWrap = document.createElement("div");
+        tabWrap.style.cssText = `width:${tabScaledW}px;height:${tabScaledH}px;overflow:visible;flex-shrink:0;`;
+        tabWrap.appendChild(tabEl);
+
+        let catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
+        catBanner.style.cssText += 'margin:8px 0 0;align-self:center;';
+
+        let leftPanel = document.createElement("div");
+        leftPanel.style.cssText = `flex:0 0 ${leftW}px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:12px 8px 12px 12px;gap:0;overflow:hidden;box-sizing:border-box;`;
+        leftPanel.appendChild(tabWrap);
+        leftPanel.appendChild(catBanner);
+
+        // ── Ruota (pannello destro) ────────────────────────────────────
+        // Diametro: riempi il pannello quanto possibile
+        const wheelDiam = Math.min(rightW - 20, Math.round(avH * 0.78));
+        const wheelRes  = wheelDiam * 2;
 
         let smallCanvas = document.createElement("canvas");
         smallCanvas.width  = wheelRes;
         smallCanvas.height = wheelRes;
-        smallCanvas.style.cssText = `width:${wheelPx}px;height:${wheelPx}px;border-radius:50%;flex-shrink:0;`;
+        smallCanvas.style.cssText = `width:${wheelDiam}px;height:${wheelDiam}px;flex-shrink:0;`;
 
-        // ── Tabellone (pannello sinistro) ──────────────────────────────
-        const tabW = 14 * ruota.CELL_W + 13 * ruota.CELL_GAP; // 1269px
-        const tabH = 4  * ruota.CELL_H + 3  * ruota.CELL_GAP; // 343px
-        const sc   = Math.min(0.96, (leftW - 24) / tabW);
-
-        let tabEl = ruota._buildTabellone();
-        tabEl.style.transform       = `scale(${sc})`;
-        tabEl.style.transformOrigin = 'top center';
-        tabEl.style.marginBottom    = Math.round((sc - 1) * tabH) + 'px';
-        tabEl.style.flexShrink      = '0';
-
-        let catBanner = ruota._buildCatBanner(ruota.fraseCorrente ? ruota.fraseCorrente.categoria : '');
-        catBanner.style.cssText += 'margin:6px 0 0;';
-
-        let leftPanel = document.createElement("div");
-        leftPanel.style.cssText = `width:${leftW}px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 8px;gap:0;overflow:hidden;`;
-        leftPanel.appendChild(tabEl);
-        leftPanel.appendChild(catBanner);
-
-        // ── Info giocatore + ruota (pannello destro) ───────────────────
-        let nomeFontSize = Math.max(18, Math.min(32, Math.round(rightW / 9)));
+        let nomeFontSize = Math.max(16, Math.min(30, Math.round(rightW / 8)));
         let giraLabel = document.createElement("div");
-        giraLabel.innerHTML = `<strong style="color:${colore};font-size:${nomeFontSize}px">${nomeGiocante}</strong><br><span style="font-size:${Math.round(nomeFontSize*0.62)}px;color:rgba(255,255,255,0.45)">sta girando la ruota</span>`;
-        giraLabel.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-weight:700;text-align:center;line-height:1.4;flex-shrink:0;`;
+        giraLabel.innerHTML =
+            `<strong style="color:${colore}">${nomeGiocante}</strong><br>` +
+            `<span style="font-size:${Math.round(nomeFontSize*0.6)}px;color:rgba(255,255,255,0.45)">sta girando la ruota</span>`;
+        giraLabel.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:${nomeFontSize}px;font-weight:700;text-align:center;line-height:1.35;flex-shrink:0;`;
 
         let rightPanel = document.createElement("div");
-        rightPanel.style.cssText = `width:${rightW}px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px 10px;border-left:1px solid rgba(255,255,255,0.07);`;
+        rightPanel.style.cssText = `flex:0 0 ${rightW}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px 8px;border-left:1px solid rgba(255,255,255,0.07);box-sizing:border-box;overflow:hidden;`;
         rightPanel.appendChild(giraLabel);
         rightPanel.appendChild(smallCanvas);
 
-        // ── Layout orizzontale unico ───────────────────────────────────
+        // ── Layout ────────────────────────────────────────────────────
         let wrap = document.createElement("div");
         wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:row;align-items:center;overflow:hidden;`;
         wrap.appendChild(leftPanel);
@@ -1032,8 +1012,8 @@ const ruotaOnline = {
         field.appendChild(wrap);
 
         // ── Animazione ruota live ──────────────────────────────────────
-        self._liveWheelCanvas    = smallCanvas;
-        self._liveWheelRotation  = ruota._lastRotation;
+        self._liveWheelCanvas   = smallCanvas;
+        self._liveWheelRotation = ruota._lastRotation;
 
         let animating = true;
         const animateSmall = () => {
