@@ -1,8 +1,8 @@
 const ruota = {
 
     // ── Costanti ───────────────────────────────────────────────────
-    CELL_W: 92, CELL_H: 88, CELL_GAP: 5,
-    CELL_RANGES: [{s:1,n:11},{s:0,n:13},{s:0,n:13},{s:1,n:11}],
+    CELL_W: 86, CELL_H: 82, CELL_GAP: 5,
+    CELL_RANGES: [{s:1,n:12},{s:0,n:14},{s:0,n:14},{s:1,n:12}],
     COLORS: ['#ff4466','#4488ff','#22cc88'],
 
     // 24 spicchi secondo configurazione
@@ -319,14 +319,14 @@ const ruota = {
         let frase = this.fraseCorrente ? this.fraseCorrente.frase : '';
         let RANGES = this.CELL_RANGES;
         let maxW = RANGES.map(r=>r.n);
-        let griglia = Array.from({length:4},()=>Array(13).fill(null));
-        let posMap  = Array.from({length:4},()=>Array(13).fill(-1));
+        let griglia = Array.from({length:4},()=>Array(14).fill(null));
+        let posMap  = Array.from({length:4},()=>Array(14).fill(-1));
         for (let r=0;r<4;r++) for (let c=RANGES[r].s;c<RANGES[r].s+RANGES[r].n;c++) griglia[r][c]=' ';
         if (!frase) { this._griglia=griglia; this._posMap=posMap; return; }
         let words = frase.split(' ');
         let lines = [], cur = '';
         for (let w of words) {
-            let ri = lines.length, mw = ri<4 ? maxW[ri] : 11;
+            let ri = lines.length, mw = ri<4 ? maxW[ri] : 12;
             if (!cur) { cur=w; }
             else if (cur.length+1+w.length<=mw) { cur+=' '+w; }
             else { lines.push(cur); cur=w; }
@@ -336,10 +336,10 @@ const ruota = {
         for (let i=0;i<lines.length&&startRow+i<4;i++) {
             let r = startRow+i, line = lines[i], rng = RANGES[r];
             let startC = rng.s + Math.floor((rng.n - line.length)/2);
-            for (let j=0;j<line.length;j++) { let c=startC+j; if(c>=0&&c<13) griglia[r][c]=line[j]; }
+            for (let j=0;j<line.length;j++) { let c=startC+j; if(c>=0&&c<14) griglia[r][c]=line[j]; }
         }
         let gridLetters=[];
-        for (let r=0;r<4;r++) for (let c=0;c<13;c++) {
+        for (let r=0;r<4;r++) for (let c=0;c<14;c++) {
             let ch=griglia[r][c]; if (ch!==null && ch!==' ') gridLetters.push({r,c});
         }
         let fraseIdxs=[];
@@ -384,14 +384,14 @@ const ruota = {
     _buildTabellone() {
         let {CELL_W,CELL_H,CELL_GAP,CELL_RANGES}=this;
         let griglia=this._griglia, posMap=this._posMap;
-        let totalW = 13*CELL_W + 12*CELL_GAP, totalH = 4*CELL_H + 3*CELL_GAP;
+        let totalW = 14*CELL_W + 13*CELL_GAP, totalH = 4*CELL_H + 3*CELL_GAP;
         let wrap = document.createElement("div");
         wrap.id = "ruota-tabellone";
         wrap.style.cssText = `position:relative;width:${totalW}px;height:${totalH}px;flex-shrink:0;`;
         let tc = this._mancheTabColor();
         let isDiagonal = this.manche === 2;
         for (let r=0;r<4;r++) {
-            for (let c=0;c<13;c++) {
+            for (let c=0;c<14;c++) {
                 let ch = griglia ? griglia[r][c] : null;
                 if (ch===null) continue;
                 let x = c*(CELL_W+CELL_GAP), y = r*(CELL_H+CELL_GAP);
@@ -410,7 +410,7 @@ const ruota = {
                         cell.style.background = '#f4f4f4';
                         cell.style.border = '3px solid #c0c0c0';
                         cell.style.fontFamily = "'Barlow Condensed',sans-serif";
-                        cell.style.fontSize = '54px'; cell.style.fontWeight = '800';
+                        cell.style.fontSize = '48px'; cell.style.fontWeight = '800';
                         cell.style.color = '#111111';
                         cell.textContent = ch;
                     } else {
@@ -1398,31 +1398,46 @@ const ruota = {
         grafica.puliscifield();
         grafica._statusBar("← TORNA AL MENU","RUOTA DELLA FORTUNA",()=>{});
         let wrap=document.createElement("div");
-        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:16px;padding:12px 0 10px;overflow:hidden;`;
+        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;padding:10px 16px 8px;overflow:hidden;box-sizing:border-box;`;
         let tabEl=this._buildTabellone();
-        let tabScale=Math.min(0.68, window.innerWidth*0.78/1100);
+        let tabW = 14*this.CELL_W + 13*this.CELL_GAP;
+        let tabScale=Math.min(0.82, (window.innerWidth-24)*0.96/tabW);
         tabEl.style.transform=`scale(${tabScale})`;
         tabEl.style.transformOrigin='top center';
-        tabEl.style.marginBottom=Math.round((tabScale-1)*260)+'px';
+        tabEl.style.marginBottom=Math.round((tabScale-1)*(4*this.CELL_H+3*this.CELL_GAP)*0.72)+'px';
+        let catBannerL = this._buildCatBanner(this.fraseCorrente ? this.fraseCorrente.categoria : '');
+        catBannerL.style.cssText += 'margin:0;padding:7px 40px;font-size:24px;';
         let titolo=document.createElement("div");
         titolo.innerHTML=isRaddoppia
             ? `✖2 RADDOPPIA · Chiama una consonante`
             : (ruota._tipoAzione === 'jolly'
                 ? `🃏 JOLLY · Chiama una consonante per guadagnarlo!`
                 : `<strong style="color:#f0c800">${this._fmtEuro(this.valoreRuota)}</strong> · Chiama una consonante`);
-        titolo.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:700;color:white;text-align:center;`;
-        let grid=document.createElement("div");
-        grid.style.cssText=`display:flex;flex-wrap:wrap;gap:14px;justify-content:center;max-width:900px;`;
-        for (let l of 'BCDFGHJKLMNPQRSTVWXYZ') {
-            let btn=document.createElement("button");
-            btn.innerHTML=l;
-            btn.style.cssText=`width:94px;height:94px;font-family:'Barlow Condensed',sans-serif;font-size:50px;font-weight:800;background:rgba(255,255,255,0.12);color:white;border:2px solid rgba(255,255,255,0.3);border-radius:12px;cursor:pointer;`;
-            btn.addEventListener('click',()=>ruota._confermaCons(l,isRaddoppia));
-            grid.appendChild(btn);
-        }
-        let catBannerL = this._buildCatBanner(this.fraseCorrente ? this.fraseCorrente.categoria : '');
-        catBannerL.style.margin = '0';
-        wrap.appendChild(tabEl); wrap.appendChild(catBannerL); wrap.appendChild(titolo); wrap.appendChild(grid);
+        titolo.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;color:white;text-align:left;width:100%;`;
+        // 2 righe di consonanti da sinistra
+        const ROW1 = 'BCDFGHJKLMN';
+        const ROW2 = 'PQRSTVWXYZ';
+        const gap = 7;
+        const btnSize = Math.max(38, Math.min(72, Math.floor((window.innerWidth - 32 - 10*gap) / 11)));
+        const fontSize = Math.max(22, Math.round(btnSize * 0.62));
+        const makeRow = (letters) => {
+            let row = document.createElement("div");
+            row.style.cssText=`display:flex;gap:${gap}px;justify-content:flex-start;width:100%;`;
+            for (let l of letters) {
+                let btn=document.createElement("button");
+                btn.dataset.lettera=l;
+                btn.innerHTML=l;
+                btn.style.cssText=`width:${btnSize}px;height:${btnSize}px;font-family:'Barlow Condensed',sans-serif;font-size:${fontSize}px;font-weight:800;background:rgba(255,255,255,0.12);color:white;border:2px solid rgba(255,255,255,0.3);border-radius:10px;cursor:pointer;flex-shrink:0;`;
+                btn.addEventListener('click',()=>ruota._confermaCons(l,isRaddoppia));
+                row.appendChild(btn);
+            }
+            return row;
+        };
+        wrap.appendChild(tabEl);
+        wrap.appendChild(catBannerL);
+        wrap.appendChild(titolo);
+        wrap.appendChild(makeRow(ROW1));
+        wrap.appendChild(makeRow(ROW2));
         field.appendChild(wrap);
         main.current="RuotaLettera";
     },
