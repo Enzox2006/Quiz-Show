@@ -872,59 +872,35 @@ const ruota = {
     _velocissimaPrenota(playerIdx) {
         if (this._termometroEliminate.includes(playerIdx)) return;
         clearInterval(this._termometroTimer);
-        let overlay=document.createElement("div");
-        overlay.id="vel-overlay";
-        overlay.style.cssText=`position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,0,24,0.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:500;padding:16px 80px;`;
-        let titolo=document.createElement("div");
-        titolo.innerHTML=`${this._nomeG(playerIdx)} &mdash; DAI LA SOLUZIONE`;
-        titolo.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;color:${this.COLORS[playerIdx]};letter-spacing:3px;`;
-        let tabElVel=this._buildTabellone();
-        let tabScaleVel=Math.min(0.68, window.innerWidth*0.78/1100);
-        tabElVel.style.transform=`scale(${tabScaleVel})`;
-        tabElVel.style.transformOrigin='top center';
-        tabElVel.style.marginBottom=Math.round((tabScaleVel-1)*260)+'px';
-        let inp=document.createElement("input");
-        inp.type="text"; inp.placeholder="Scrivi la frase...";
-        inp.style.cssText=`background:rgba(255,255,255,0.07);border:2px solid ${this.COLORS[playerIdx]}88;border-radius:14px;padding:24px 36px;font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:700;color:white;outline:none;width:100%;box-sizing:border-box;text-transform:uppercase;`;
-        let btnRow=document.createElement("div");
-        btnRow.style.cssText=`display:flex;gap:20px;width:100%;`;
-        let okBtn=document.createElement("button");
-        okBtn.innerHTML="✓ CONFERMA";
-        okBtn.style.cssText=`flex:2;background:rgba(34,204,102,0.12);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:22px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:800;cursor:pointer;`;
-        let annullaBtn=document.createElement("button");
-        annullaBtn.innerHTML="← ANNULLA";
-        annullaBtn.style.cssText=`flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:22px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:700;cursor:pointer;`;
-        annullaBtn.addEventListener('click',()=>{ overlay.remove(); ruota._velocissima_resumeTimer(); });
-        let doCheck=()=>{
-            let risposta=inp.value.trim().toUpperCase();
-            let corretta=ruota.fraseCorrente?ruota.fraseCorrente.frase.toUpperCase():'';
-            if (risposta===corretta) {
-                ruota.punteggioGioco[playerIdx]+=1000;
-                ruota.turnoIniziale=playerIdx; ruota.turno=playerIdx;
-                overlay.remove();
-                ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`,"#22cc66");
-                let _mv1=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_mv1),2000);
-            } else {
-                ruota._termometroEliminate.push(playerIdx);
-                ruota._showToast("Sbagliato!","#ff4444");
-                ruota._queueTimeout(()=>{
-                    overlay.remove();
-                    let btn=document.getElementById(`vel-btn-${playerIdx}`);
-                    if (btn){btn.style.opacity='0.25';btn.style.pointerEvents='none';}
-                    if (ruota._termometroEliminate.length>=3){
-                        ruota._showToast("Tutti eliminati! Prossima manche.","#888");
-                        let _mv2=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_mv2),2000);
-                    } else { ruota._velocissima_resumeTimer(); }
-                },1400);
+        ruota._buildVKSoluzione({
+            titolo: `${this._nomeG(playerIdx)} &mdash; DAI LA SOLUZIONE`,
+            colore: this.COLORS[playerIdx],
+            overlayId: 'vel-overlay',
+            posFixed: false,
+            containerEl: field,
+            annullaTesto: '← ANNULLA',
+            onAnnulla: () => ruota._velocissima_resumeTimer(),
+            onConferma: (risposta) => {
+                let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
+                if (risposta === corretta) {
+                    ruota.punteggioGioco[playerIdx] += 1000;
+                    ruota.turnoIniziale = playerIdx; ruota.turno = playerIdx;
+                    ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, "#22cc66");
+                    let _mv1 = ruota.manche; ruota._queueTimeout(() => ruota._avanzaManche(_mv1), 2000);
+                } else {
+                    ruota._termometroEliminate.push(playerIdx);
+                    ruota._showToast("Sbagliato!", "#ff4444");
+                    ruota._queueTimeout(() => {
+                        let btn = document.getElementById(`vel-btn-${playerIdx}`);
+                        if (btn) { btn.style.opacity = '0.25'; btn.style.pointerEvents = 'none'; }
+                        if (ruota._termometroEliminate.length >= 3) {
+                            ruota._showToast("Tutti eliminati! Prossima manche.", "#888");
+                            let _mv2 = ruota.manche; ruota._queueTimeout(() => ruota._avanzaManche(_mv2), 2000);
+                        } else { ruota._velocissima_resumeTimer(); }
+                    }, 1400);
+                }
             }
-        };
-        okBtn.addEventListener('click',doCheck);
-        inp.addEventListener('keydown',e=>{if(e.key==='Enter')doCheck();});
-        btnRow.appendChild(okBtn); btnRow.appendChild(annullaBtn);
-        overlay.appendChild(titolo); overlay.appendChild(tabElVel); overlay.appendChild(inp); overlay.appendChild(btnRow);
-        field.appendChild(overlay);
-        ruota._applyMobileKeyboardFix(overlay, tabElVel);
-        setTimeout(()=>inp.focus(),80);
+        });
     },
 
     _velocissima_resumeTimer() {
@@ -1606,68 +1582,177 @@ const ruota = {
     },
 
     // ── Soluzione come overlay (tabellone visibile) ─────────────────
-    _apriSoluzione(onCorretta, onSbagliata) {
-        clearInterval(this._gongTimer);
-        let overlay=document.createElement("div");
-        overlay.id="soluzione-overlay";
-        overlay.style.cssText=`
-            position:fixed;top:0;left:0;right:0;bottom:0;
-            background:rgba(5,0,20,0.93);
-            display:flex;flex-direction:column;align-items:center;justify-content:center;
-            gap:20px;z-index:8000;padding:24px 60px;
-        `;
-        let titolo=document.createElement("div");
-        titolo.innerHTML=`${this._nomeTurno()} — DAI LA SOLUZIONE`;
-        titolo.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;letter-spacing:3px;color:${this.COLORS[this.turno]};text-align:center;`;
-        let hint=document.createElement("div");
-        hint.innerHTML=`Categoria: <strong style="color:#f0c800">${this.fraseCorrente?this.fraseCorrente.categoria:''}</strong>`;
-        hint.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:26px;color:rgba(255,255,255,0.4);`;
-        // Tabellone responsivo (adattato alle dimensioni schermo)
-        let tabClone=this._buildTabellone();
-        let tabScaleS=Math.min(0.72, window.innerWidth*0.80/1100);
-        tabClone.style.transform=`scale(${tabScaleS})`;
-        tabClone.style.transformOrigin='top center';
-        tabClone.style.marginBottom=Math.round((tabScaleS-1)*260)+'px';
-        let inp=document.createElement("input");
-        inp.type="text"; inp.placeholder="Scrivi la frase...";
-        inp.style.cssText=`background:rgba(255,255,255,0.1);border:2px solid ${this.COLORS[this.turno]}88;border-radius:14px;padding:22px 36px;font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:700;color:white;outline:none;width:100%;max-width:900px;box-sizing:border-box;text-transform:uppercase;`;
-        let btnRow=document.createElement("div");
-        btnRow.style.cssText=`display:flex;gap:20px;max-width:900px;width:100%;`;
-        let confermaBtn=document.createElement("button");
-        confermaBtn.innerHTML="✓ CONFERMA";
-        confermaBtn.style.cssText=`flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:20px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:800;cursor:pointer;`;
-        let backBtn=document.createElement("button");
-        backBtn.innerHTML="← INDIETRO";
-        backBtn.style.cssText=`flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:20px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:700;cursor:pointer;`;
-        backBtn.addEventListener('click',()=>{ overlay.remove(); if (ruota.faseGong) { ruota._renderFinale(); main.current="RuotaFinale"; } });
-        let doConferma=()=>{
-            let risposta=inp.value.trim().toUpperCase();
-            let corretta=this.fraseCorrente?this.fraseCorrente.frase.toUpperCase():'';
-            if (risposta===corretta) {
-                overlay.remove();
-                for (let i=0;i<this.fraseLettereScoperte.length;i++) this.fraseLettereScoperte[i]=true;
-                if (onCorretta) { onCorretta(); }
-                else { ruota._vinceRound(ruota.turno); }
-            } else {
-                if (onSbagliata) { ruota._showToast("Sbagliato!","#ff4444"); setTimeout(()=>{ overlay.remove(); onSbagliata(); },1200); }
-                else if (ruota.faseGong) {
-                    ruota._showToast("Sbagliato! Il turno passa.","#ff4444");
-                    setTimeout(()=>{ overlay.remove(); ruota._prossimoTurnoGong(); },2000);
+    // ── Schermata Soluzione con Tastiera Virtuale ─────────────────
+    _buildVKSoluzione({ titolo, colore, subtitolo, overlayId, posFixed, containerEl, annullaTesto, onConferma, onAnnulla }) {
+        const frase = (this.fraseCorrente?.frase || '').toUpperCase();
+        const scoperte = this.fraseLettereScoperte || [];
+        const isBlank = (i) => !scoperte[i] && /^[A-Z]$/.test(frase[i]);
+        let ans = frase.split('').map((c, i) => isBlank(i) ? null : c);
+        let cur = ans.findIndex(c => c === null);
+        let docKH = null;
+        const closeOv = () => { if (docKH) document.removeEventListener('keydown', docKH); ov.remove(); };
+
+        let ov = document.createElement("div");
+        ov.id = overlayId || 'soluzione-overlay';
+        ov.style.cssText = `position:${posFixed?'fixed':'absolute'};top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.96);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;z-index:8000;padding:12px 14px 16px;overflow-y:auto;box-sizing:border-box;`;
+
+        let titEl = document.createElement("div");
+        titEl.innerHTML = titolo;
+        titEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:clamp(20px,4vw,38px);font-weight:800;letter-spacing:3px;color:${colore};text-align:center;flex-shrink:0;`;
+        ov.appendChild(titEl);
+
+        if (subtitolo) {
+            let sub = document.createElement("div");
+            sub.innerHTML = subtitolo;
+            sub.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:19px;color:rgba(255,255,255,0.38);flex-shrink:0;text-align:center;`;
+            ov.appendChild(sub);
+        }
+
+        let tab = this._buildTabellone();
+        let sc = Math.min(0.68, window.innerWidth * 0.78 / 1100);
+        tab.style.transform = `scale(${sc})`;
+        tab.style.transformOrigin = 'top center';
+        tab.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
+        tab.style.flexShrink = '0';
+        ov.appendChild(tab);
+
+        let disp = document.createElement("div");
+        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:4px 12px;padding:4px 8px;max-width:100%;flex-shrink:0;`;
+
+        const redraw = () => {
+            disp.innerHTML = '';
+            let i = 0;
+            while (i < frase.length) {
+                if (frase[i] === ' ') {
+                    let sp = document.createElement("div");
+                    sp.style.cssText = `width:14px;flex-shrink:0;`;
+                    disp.appendChild(sp); i++;
                 } else {
-                    ruota._chiedeJolly("Sbagliato!","#ff4444",
-                        ()=>{ overlay.remove(); ruota._showToast("🃏 Jolly usato — turno salvato!","#a855f7"); setTimeout(()=>{ ruota._renderGioco(); main.current="RuotaGioco"; },2000); },
-                        ()=>{ overlay.remove(); ruota._showToast("Sbagliato! Il turno passa.","#ff4444"); setTimeout(()=>ruota._passaTurno(),2000); }
-                    );
+                    let word = document.createElement("div");
+                    word.style.cssText = `display:flex;gap:3px;align-items:flex-end;`;
+                    while (i < frase.length && frase[i] !== ' ') {
+                        let cell = document.createElement("div");
+                        let blank = ans[i] === null;
+                        let pre = !isBlank(i);
+                        let isCur = (i === cur);
+                        cell.style.cssText = `width:clamp(22px,3.6vw,42px);height:clamp(26px,4.2vw,44px);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:clamp(15px,2.8vw,30px);font-weight:800;border-bottom:2px solid ${pre?'rgba(255,255,255,0.15)':isCur?colore:'rgba(255,255,255,0.4)'};color:${pre?'rgba(255,255,255,0.3)':blank?'rgba(255,255,255,0.22)':'white'};box-sizing:border-box;flex-shrink:0;`;
+                        if (blank) {
+                            if (isCur) {
+                                cell.innerHTML = `<span style="color:${colore};animation:vkBlink 0.9s step-end infinite">▮</span>`;
+                            } else {
+                                cell.textContent = '·';
+                            }
+                        } else {
+                            cell.textContent = ans[i];
+                        }
+                        word.appendChild(cell); i++;
+                    }
+                    disp.appendChild(word);
                 }
             }
         };
-        confermaBtn.addEventListener('click',doConferma);
-        inp.addEventListener('keydown',e=>{if(e.key==='Enter')doConferma();});
-        btnRow.appendChild(confermaBtn); btnRow.appendChild(backBtn);
-        overlay.appendChild(titolo); overlay.appendChild(hint); overlay.appendChild(tabClone); overlay.appendChild(inp); overlay.appendChild(btnRow);
-        document.body.appendChild(overlay);
-        ruota._applyMobileKeyboardFix(overlay, tabClone);
-        setTimeout(()=>inp.focus(),80);
+        redraw();
+        ov.appendChild(disp);
+
+        const addLtr = (l) => {
+            if (cur === -1) return;
+            ans[cur] = l;
+            let prev = cur;
+            cur = ans.findIndex((c, j) => j > prev && c === null);
+            redraw();
+        };
+        const doBack = () => {
+            let from = cur === -1 ? frase.length - 1 : cur - 1;
+            for (let j = from; j >= 0; j--) {
+                if (isBlank(j) && ans[j] !== null) { ans[j] = null; cur = j; redraw(); return; }
+            }
+        };
+
+        const mkRow = (ltrs) => {
+            let row = document.createElement("div");
+            row.className = 'ruota-tastiera-riga';
+            row.style.flexShrink = '0';
+            for (let l of ltrs) {
+                let btn = document.createElement("button");
+                btn.className = 'ruota-lettera-btn';
+                btn.dataset.lettera = l;
+                btn.textContent = l;
+                btn.addEventListener('click', () => addLtr(l));
+                row.appendChild(btn);
+            }
+            return row;
+        };
+        ov.appendChild(mkRow('QWERTYUIOP'));
+        ov.appendChild(mkRow('ASDFGHJKL'));
+        let r3 = mkRow('ZXCVBNM');
+        let bkBtn = document.createElement("button");
+        bkBtn.className = 'ruota-lettera-btn';
+        bkBtn.innerHTML = '⌫';
+        bkBtn.style.minWidth = '68px';
+        bkBtn.addEventListener('click', doBack);
+        r3.appendChild(bkBtn);
+        ov.appendChild(r3);
+
+        let bRow = document.createElement("div");
+        bRow.style.cssText = `display:flex;gap:14px;width:100%;max-width:720px;flex-shrink:0;margin-top:2px;`;
+
+        let annBtn = document.createElement("button");
+        annBtn.innerHTML = annullaTesto || '← ANNULLA';
+        annBtn.style.cssText = `flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(18px,2.6vw,32px);font-weight:700;cursor:pointer;`;
+        annBtn.addEventListener('click', () => { closeOv(); if (onAnnulla) onAnnulla(); });
+
+        let confBtn = document.createElement("button");
+        confBtn.innerHTML = '✓ CONFERMA SOLUZIONE';
+        confBtn.style.cssText = `flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(18px,2.6vw,32px);font-weight:800;cursor:pointer;`;
+        confBtn.addEventListener('click', () => { let r = ans.join(''); closeOv(); onConferma(r); });
+
+        bRow.appendChild(annBtn); bRow.appendChild(confBtn);
+        ov.appendChild(bRow);
+
+        docKH = (e) => {
+            if (!document.body.contains(ov)) { document.removeEventListener('keydown', docKH); return; }
+            if (e.key === 'Backspace') { doBack(); e.preventDefault(); }
+            else if (e.key === 'Enter') { confBtn.click(); e.preventDefault(); }
+            else if (/^[a-zA-Z]$/.test(e.key)) { addLtr(e.key.toUpperCase()); e.preventDefault(); }
+        };
+        document.addEventListener('keydown', docKH);
+        containerEl.appendChild(ov);
+        return ov;
+    },
+
+    _apriSoluzione(onCorretta, onSbagliata) {
+        clearInterval(this._gongTimer);
+        ruota._buildVKSoluzione({
+            titolo: `${this._nomeTurno()} — DAI LA SOLUZIONE`,
+            colore: this.COLORS[this.turno],
+            subtitolo: `Categoria: <strong style="color:#f0c800">${this.fraseCorrente ? this.fraseCorrente.categoria : ''}</strong>`,
+            overlayId: 'soluzione-overlay',
+            posFixed: true,
+            containerEl: document.body,
+            annullaTesto: '← INDIETRO',
+            onAnnulla: () => { if (ruota.faseGong) { ruota._renderFinale(); main.current = "RuotaFinale"; } },
+            onConferma: (risposta) => {
+                let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
+                if (risposta === corretta) {
+                    for (let i = 0; i < ruota.fraseLettereScoperte.length; i++) ruota.fraseLettereScoperte[i] = true;
+                    if (onCorretta) { onCorretta(); }
+                    else { ruota._vinceRound(ruota.turno); }
+                } else {
+                    if (onSbagliata) {
+                        ruota._showToast("Sbagliato!", "#ff4444");
+                        setTimeout(() => onSbagliata(), 1200);
+                    } else if (ruota.faseGong) {
+                        ruota._showToast("Sbagliato! Il turno passa.", "#ff4444");
+                        setTimeout(() => ruota._prossimoTurnoGong(), 2000);
+                    } else {
+                        ruota._chiedeJolly("Sbagliato!", "#ff4444",
+                            () => { ruota._showToast("🃏 Jolly usato — turno salvato!", "#a855f7"); setTimeout(() => { ruota._renderGioco(); main.current = "RuotaGioco"; }, 2000); },
+                            () => { ruota._showToast("Sbagliato! Il turno passa.", "#ff4444"); setTimeout(() => ruota._passaTurno(), 2000); }
+                        );
+                    }
+                }
+            }
+        });
     },
 
     // ── Timeout registrato (cancellabile) ──────────────────────────
@@ -1866,42 +1951,20 @@ const ruota = {
     },
 
     _apriSoluzioneTriplete(idx, onSbagliata) {
-        let overlay=document.createElement("div");
-        overlay.id="triplete-overlay";
-        overlay.style.cssText=`position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:50;padding:16px 60px;`;
-        let titolo=document.createElement("div");
-        titolo.innerHTML=`${this._nomeG(idx)} — scrivi la soluzione`;
-        titolo.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;color:${this.COLORS[idx]};text-align:center;`;
-        let tabElTri=this._buildTabellone();
-        let tabScaleTri=Math.min(0.68, window.innerWidth*0.78/1100);
-        tabElTri.style.transform=`scale(${tabScaleTri})`;
-        tabElTri.style.transformOrigin='top center';
-        tabElTri.style.marginBottom=Math.round((tabScaleTri-1)*260)+'px';
-        let inp=document.createElement("input");
-        inp.type="text"; inp.placeholder="Scrivi la soluzione...";
-        inp.style.cssText=`background:rgba(255,255,255,0.09);border:2px solid rgba(240,200,0,0.5);border-radius:14px;padding:20px 32px;font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:700;color:white;outline:none;width:100%;max-width:800px;box-sizing:border-box;text-transform:uppercase;`;
-        let btnRow=document.createElement("div");
-        btnRow.style.cssText=`display:flex;gap:20px;max-width:800px;width:100%;`;
-        let okBtn=document.createElement("button");
-        okBtn.innerHTML="✓ CONFERMA";
-        okBtn.style.cssText=`flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:22px 70px;font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;cursor:pointer;`;
-        let annullaBtn=document.createElement("button");
-        annullaBtn.innerHTML="✗ ANNULLA";
-        annullaBtn.style.cssText=`flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:22px 50px;font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:700;cursor:pointer;`;
-        let doConferma=()=>{
-            let risposta=inp.value.trim().toUpperCase();
-            let corretta=ruota.fraseCorrente?ruota.fraseCorrente.frase.toUpperCase():'';
-            if (risposta===corretta) { ruota._confermaTriplete(true,idx); overlay.remove(); }
-            else { ruota._showToast("Sbagliato!","#ff4444"); setTimeout(()=>{overlay.remove();if(onSbagliata)onSbagliata();},1200); }
-        };
-        okBtn.addEventListener('click',doConferma);
-        annullaBtn.addEventListener('click',()=>{overlay.remove();if(onSbagliata)onSbagliata();});
-        inp.addEventListener('keydown',e=>{if(e.key==='Enter')doConferma();});
-        btnRow.appendChild(okBtn); btnRow.appendChild(annullaBtn);
-        overlay.appendChild(titolo); overlay.appendChild(tabElTri); overlay.appendChild(inp); overlay.appendChild(btnRow);
-        field.appendChild(overlay);
-        ruota._applyMobileKeyboardFix(overlay, tabElTri);
-        setTimeout(()=>inp.focus(),80);
+        ruota._buildVKSoluzione({
+            titolo: `${this._nomeG(idx)} — DAI LA SOLUZIONE`,
+            colore: this.COLORS[idx],
+            overlayId: 'triplete-overlay',
+            posFixed: false,
+            containerEl: field,
+            annullaTesto: '✗ ANNULLA',
+            onAnnulla: () => { if (onSbagliata) onSbagliata(); },
+            onConferma: (risposta) => {
+                let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
+                if (risposta === corretta) { ruota._confermaTriplete(true, idx); }
+                else { ruota._showToast("Sbagliato!", "#ff4444"); setTimeout(() => { if (onSbagliata) onSbagliata(); }, 1200); }
+            }
+        });
     },
 
     _confermaTriplete(corretto, idx) {
@@ -2472,54 +2535,31 @@ const ruota = {
 
     _apriSoluzioneBonusRaddoppio() {
         let v = this._raddoppioVincitore;
-        let overlay = document.createElement("div");
-        overlay.id = "soluzione-overlay";
-        overlay.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:8000;padding:24px 60px;`;
-        let titolo = document.createElement("div");
-        titolo.innerHTML = `${this._nomeG(v)} — DAI LA SOLUZIONE`;
-        titolo.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;letter-spacing:3px;color:${this.COLORS[v]};text-align:center;`;
-        let tabClone = this._buildTabellone();
-        let tsc = Math.min(0.72, window.innerWidth * 0.80 / 1100);
-        tabClone.style.transform = `scale(${tsc})`; tabClone.style.transformOrigin = 'top center';
-        tabClone.style.marginBottom = Math.round((tsc-1)*260) + 'px';
-        let inp = document.createElement("input");
-        inp.type = "text"; inp.placeholder = "Scrivi la frase...";
-        inp.style.cssText = `background:rgba(255,255,255,0.1);border:2px solid ${this.COLORS[v]}88;border-radius:14px;padding:22px 36px;font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:700;color:white;outline:none;width:100%;max-width:900px;box-sizing:border-box;text-transform:uppercase;`;
-        let btnRow = document.createElement("div");
-        btnRow.style.cssText = `display:flex;gap:20px;max-width:900px;width:100%;`;
-        let confermaBtn = document.createElement("button");
-        confermaBtn.innerHTML = "✓ CONFERMA";
-        confermaBtn.style.cssText = `flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:20px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:800;cursor:pointer;`;
-        let backBtn = document.createElement("button");
-        backBtn.innerHTML = "← INDIETRO";
-        backBtn.style.cssText = `flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:20px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:700;cursor:pointer;`;
-        backBtn.addEventListener('click', () => {
-            overlay.remove();
-            if (ruota._raddoppioSecondi > 0) {
-                ruota._raddoppioTimer = setInterval(() => {
-                    ruota._raddoppioSecondi--;
-                    let el = document.getElementById('bonus-timer');
-                    if (el) { el.textContent = ruota._raddoppioSecondi; if (ruota._raddoppioSecondi <= 5) { el.style.color='#ff2200'; el.style.borderColor='#ff2200'; } }
-                    if (ruota._raddoppioSecondi <= 0) { clearInterval(ruota._raddoppioTimer); ruota._bonusErrata(); }
-                }, 1000);
-            } else { ruota._bonusErrata(); }
+        ruota._buildVKSoluzione({
+            titolo: `${this._nomeG(v)} — DAI LA SOLUZIONE`,
+            colore: this.COLORS[v],
+            overlayId: 'soluzione-overlay',
+            posFixed: true,
+            containerEl: document.body,
+            annullaTesto: '← INDIETRO',
+            onAnnulla: () => {
+                if (ruota._raddoppioSecondi > 0) {
+                    ruota._raddoppioTimer = setInterval(() => {
+                        ruota._raddoppioSecondi--;
+                        let el = document.getElementById('bonus-timer');
+                        if (el) { el.textContent = ruota._raddoppioSecondi; if (ruota._raddoppioSecondi <= 5) { el.style.color = '#ff2200'; el.style.borderColor = '#ff2200'; } }
+                        if (ruota._raddoppioSecondi <= 0) { clearInterval(ruota._raddoppioTimer); ruota._bonusErrata(); }
+                    }, 1000);
+                } else { ruota._bonusErrata(); }
+            },
+            onConferma: (risposta) => {
+                let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
+                if (risposta === corretta) {
+                    for (let i = 0; i < ruota.fraseLettereScoperte.length; i++) ruota.fraseLettereScoperte[i] = true;
+                    ruota._bonusCorretta();
+                } else { ruota._bonusErrata(); }
+            }
         });
-        let doConferma = () => {
-            let risposta = inp.value.trim().toUpperCase();
-            let corretta = this.fraseCorrente ? this.fraseCorrente.frase.toUpperCase() : '';
-            overlay.remove();
-            if (risposta === corretta) {
-                for (let i = 0; i < this.fraseLettereScoperte.length; i++) this.fraseLettereScoperte[i] = true;
-                ruota._bonusCorretta();
-            } else { ruota._bonusErrata(); }
-        };
-        confermaBtn.addEventListener('click', doConferma);
-        inp.addEventListener('keydown', e => { if (e.key === 'Enter') doConferma(); });
-        btnRow.appendChild(confermaBtn); btnRow.appendChild(backBtn);
-        overlay.appendChild(titolo); overlay.appendChild(tabClone); overlay.appendChild(inp); overlay.appendChild(btnRow);
-        document.body.appendChild(overlay);
-        ruota._applyMobileKeyboardFix(overlay, tabClone);
-        setTimeout(() => inp.focus(), 80);
     },
 
     _bonusCorretta() {
