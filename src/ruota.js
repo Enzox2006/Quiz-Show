@@ -293,7 +293,7 @@ const ruota = {
 
     // ── Tabellone ──────────────────────────────────────────────────
     _nuovaFrase(pool) {
-        let lista = pool || FRASI_RUOTA;
+        let lista = (pool && pool.length > 0) ? pool : FRASI_RUOTA;
         this.fraseCorrente = lista[Math.floor(Math.random()*lista.length)];
         this.lettereRivelate = new Set();
         this.fraseArray = this.fraseCorrente.frase.split('');
@@ -1030,6 +1030,7 @@ const ruota = {
         if (ac && ac.state === 'suspended') ac.resume();
     },
     _playTick(speed) {
+        this._resumeAudio();
         let ctx = this._getAudioCtx(); if (!ctx) return;
         let o = ctx.createOscillator(), g = ctx.createGain();
         o.connect(g); g.connect(ctx.destination);
@@ -1041,6 +1042,7 @@ const ruota = {
         o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.055);
     },
     _playWin() {
+        this._resumeAudio();
         let ctx = this._getAudioCtx(); if (!ctx) return;
         [523, 659, 784, 1046].forEach((freq, i) => {
             let o = ctx.createOscillator(), g = ctx.createGain();
@@ -1054,6 +1056,7 @@ const ruota = {
         });
     },
     _playBancarotta() {
+        this._resumeAudio();
         let ctx = this._getAudioCtx(); if (!ctx) return;
         // Low rumble + descending crash
         [220, 180, 140, 110, 80].forEach((freq, i) => {
@@ -1079,6 +1082,7 @@ const ruota = {
         noise.start(ctx.currentTime);
     },
     _playPassa() {
+        this._resumeAudio();
         let ctx = this._getAudioCtx(); if (!ctx) return;
         let o = ctx.createOscillator(), g = ctx.createGain();
         o.connect(g); g.connect(ctx.destination);
@@ -1090,6 +1094,7 @@ const ruota = {
         o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.4);
     },
     _playJolly() {
+        this._resumeAudio();
         let ctx = this._getAudioCtx(); if (!ctx) return;
         [392, 523, 659, 784, 1047].forEach((freq, i) => {
             let o = ctx.createOscillator(), g = ctx.createGain();
@@ -1103,6 +1108,7 @@ const ruota = {
         });
     },
     _playRaddoppia() {
+        this._resumeAudio();
         let ctx = this._getAudioCtx(); if (!ctx) return;
         [[523,659],[784,987]].forEach(([f1,f2], i) => {
             [f1,f2].forEach((freq, j) => {
@@ -1118,6 +1124,7 @@ const ruota = {
         });
     },
     _playSwoosh() {
+        this._resumeAudio();
         let ctx = this._getAudioCtx(); if (!ctx) return;
         let buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
         let d = buf.getChannelData(0);
@@ -1757,7 +1764,7 @@ const ruota = {
                     else { ruota._vinceRound(ruota.turno); }
                 } else {
                     if (onSbagliata) {
-                        ruota._showToast("Sbagliato!", "#ff4444");
+                        ruota._showToast("Sbagliato!", "#ff4444", 1000);
                         setTimeout(() => onSbagliata(), 1200);
                     } else if (ruota.faseGong) {
                         ruota._showToast("Sbagliato! Il turno passa.", "#ff4444");
@@ -1980,7 +1987,7 @@ const ruota = {
             onConferma: (risposta) => {
                 let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
                 if (risposta === corretta) { ruota._confermaTriplete(true, idx); }
-                else { ruota._showToast("Sbagliato!", "#ff4444"); setTimeout(() => { if (onSbagliata) onSbagliata(); }, 1200); }
+                else { ruota._showToast("Sbagliato!", "#ff4444", 1000); setTimeout(() => { if (onSbagliata) onSbagliata(); }, 1200); }
             }
         });
     },
@@ -2143,7 +2150,7 @@ const ruota = {
             if (el) { el.innerHTML=ruota._gongSecondi; if(ruota._gongSecondi<=1)el.style.color='#ff4444'; }
             if (ruota._gongSecondi<=0) {
                 clearInterval(ruota._gongTimer);
-                ruota._showToast("Tempo scaduto! Turno passato.","#888888");
+                ruota._showToast("Tempo scaduto! Turno passato.","#888888", 1000);
                 setTimeout(()=>ruota._prossimoTurnoGong(),1200);
             }
         },1000);
@@ -2248,7 +2255,7 @@ const ruota = {
             if (sec<=2) cdEl.style.color='#ff4444';
             if (sec<=0) {
                 clearInterval(ruota._gongPensaTimer);
-                ruota._showToast("Tempo scaduto — turno passato!","#888888");
+                ruota._showToast("Tempo scaduto — turno passato!","#888888", 1000);
                 setTimeout(()=>ruota._prossimoTurnoGong(),1200);
             }
         },1000);
@@ -2262,13 +2269,23 @@ const ruota = {
     },
 
     // ── Toast ──────────────────────────────────────────────────────
-    _showToast(msg,color) {
-        let old=document.getElementById("ruota-toast"); if(old)old.remove();
-        let t=document.createElement("div"); t.id="ruota-toast";
-        t.innerHTML=msg;
-        t.style.cssText=`position:fixed;bottom:56px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.93);border:2px solid ${color};color:${color};border-radius:14px;padding:18px 56px;font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;letter-spacing:3px;z-index:9999;white-space:nowrap;`;
+    _toastTimer: null,
+    _showToast(msg, color, ms) {
+        // Cancella timer precedente e rimuove toast vecchio
+        if (this._toastTimer) { clearTimeout(this._toastTimer); this._toastTimer = null; }
+        let old = document.getElementById("ruota-toast"); if (old) old.remove();
+        let t = document.createElement("div"); t.id = "ruota-toast";
+        t.innerHTML = msg;
+        t.style.cssText = `position:fixed;bottom:56px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.93);border:2px solid ${color};color:${color};border-radius:14px;padding:18px 56px;font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;letter-spacing:3px;z-index:9999;white-space:nowrap;transition:opacity 0.25s;`;
         document.body.appendChild(t);
-        setTimeout(()=>{if(t.parentNode)t.remove();},2800);
+        let duration = ms || 2000;
+        this._toastTimer = setTimeout(() => {
+            if (t.parentNode) {
+                t.style.opacity = '0';
+                setTimeout(() => { if (t.parentNode) t.remove(); }, 250);
+            }
+            this._toastTimer = null;
+        }, duration);
     },
 
     // ── Fix tastiera mobile: nasconde il tabellone quando la tastiera appare ──
