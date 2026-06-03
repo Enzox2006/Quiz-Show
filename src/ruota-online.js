@@ -480,11 +480,11 @@ const ruotaOnline = {
         titEl.innerHTML = `${ruota._nomeG(idx)} &mdash; DAI LA SOLUZIONE`;
         overlay.appendChild(titEl);
 
-        // Tabellone
+        // Tabellone — usa fieldWidth (coordinate virtuali) perché l'overlay è dentro il field scalato
         let tab = ruota._buildTabellone();
         const tabNW = 14 * ruota.CELL_W + 13 * ruota.CELL_GAP;
         const tabNH = 4 * ruota.CELL_H + 3 * ruota.CELL_GAP;
-        let sc = Math.min(1.0, (window.innerWidth - 32) / tabNW);
+        let sc = Math.min(1.5, (fieldWidth - 32) / tabNW);
         tab.style.transform = `scale(${sc})`;
         tab.style.transformOrigin = 'top center';
         tab.style.marginBottom = Math.round((sc - 1) * tabNH) + 'px';
@@ -494,15 +494,15 @@ const ruotaOnline = {
         // Banner categoria
         if (ruota.fraseCorrente?.categoria) {
             let cat = ruota._buildCatBanner(ruota.fraseCorrente.categoria);
-            cat.style.cssText += ';margin:0;padding:6px 40px;font-size:clamp(18px,2.2vw,24px);flex-shrink:0;';
+            cat.style.cssText += ';margin:0;padding:6px 40px;font-size:clamp(22px,2.8vw,32px);flex-shrink:0;';
             overlay.appendChild(cat);
         }
 
-        // Riga soluzione live (aggiornata in tempo reale da vel_typing)
+        // Riga soluzione live (aggiornata in tempo reale da vel_typing) — celle grandi per leggibilità
         let disp = document.createElement("div");
         disp.id = 'vel-attesa-disp';
-        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:5px 14px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
-        ruota._renderSolDisplay(disp, null, -1, ruota.COLORS[idx], false);
+        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:6px 18px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
+        ruota._renderSolDisplay(disp, null, -1, ruota.COLORS[idx], false, '78px', '60px');
         overlay.appendChild(disp);
 
         // "sta rispondendo..."
@@ -569,7 +569,7 @@ const ruotaOnline = {
                 case 'vel_typing': {
                     let disp = document.getElementById('vel-attesa-disp');
                     if (disp && ruota.fraseCorrente) {
-                        ruota._renderSolDisplay(disp, dati.ans, dati.cur, ruota.COLORS[dati.playerIdx], false);
+                        ruota._renderSolDisplay(disp, dati.ans, dati.cur, ruota.COLORS[dati.playerIdx], false, '78px', '60px');
                     }
                     break;
                 }
