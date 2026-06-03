@@ -422,6 +422,9 @@ const ruotaOnline = {
             posFixed: false,
             containerEl: field,
             annullaTesto: '← ANNULLA',
+            onLetterTyped: (ans, cur) => {
+                self.inviaAzione('vel_typing', { ans, cur, playerIdx });
+            },
             onAnnulla: () => {
                 self.inviaAzione('prenota_vel', { tipo: 'annulla', velIdx: ruota._velIdx });
                 ruota._velocissima_resumeTimer();
@@ -468,21 +471,46 @@ const ruotaOnline = {
 
         let overlay = document.createElement("div");
         overlay.id = "vel-overlay";
-        overlay.style.cssText = `position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,0,24,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;z-index:500;`;
+        overlay.style.cssText = `position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:500;padding:14px 16px;box-sizing:border-box;`;
+
+        // Titolo giocatore
+        let titEl = document.createElement("div");
+        titEl.className = 'ruota-lettera-titolo';
+        titEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:3px;text-align:center;color:${ruota.COLORS[idx]};font-size:clamp(18px,3.2vw,34px);flex-shrink:0;`;
+        titEl.innerHTML = `${ruota._nomeG(idx)} &mdash; DAI LA SOLUZIONE`;
+        overlay.appendChild(titEl);
+
+        // Tabellone
         let tab = ruota._buildTabellone();
-        let sc = Math.min(0.6, window.innerWidth * 0.72 / 1100);
+        const tabNW = 14 * ruota.CELL_W + 13 * ruota.CELL_GAP;
+        const tabNH = 4 * ruota.CELL_H + 3 * ruota.CELL_GAP;
+        let sc = Math.min(1.0, (window.innerWidth - 32) / tabNW);
         tab.style.transform = `scale(${sc})`;
         tab.style.transformOrigin = 'top center';
-        tab.style.marginBottom = Math.round((sc - 1) * 260) + 'px';
-        let nome = document.createElement("div");
-        nome.innerHTML = `<strong style="color:${ruota.COLORS[idx]}">${ruota._nomeG(idx)}</strong>`;
-        nome.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:64px;font-weight:800;text-align:center;`;
+        tab.style.marginBottom = Math.round((sc - 1) * tabNH) + 'px';
+        tab.style.flexShrink = '0';
+        overlay.appendChild(tab);
+
+        // Banner categoria
+        if (ruota.fraseCorrente?.categoria) {
+            let cat = ruota._buildCatBanner(ruota.fraseCorrente.categoria);
+            cat.style.cssText += ';margin:0;padding:6px 40px;font-size:clamp(18px,2.2vw,24px);flex-shrink:0;';
+            overlay.appendChild(cat);
+        }
+
+        // Riga soluzione live (aggiornata in tempo reale da vel_typing)
+        let disp = document.createElement("div");
+        disp.id = 'vel-attesa-disp';
+        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:5px 14px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
+        ruota._renderSolDisplay(disp, null, -1, ruota.COLORS[idx], false);
+        overlay.appendChild(disp);
+
+        // "sta rispondendo..."
         let sub = document.createElement("div");
         sub.innerHTML = "sta rispondendo...";
-        sub.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:32px;color:rgba(255,255,255,0.45);letter-spacing:4px;`;
-        overlay.appendChild(tab);
-        overlay.appendChild(nome);
+        sub.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:clamp(16px,2.4vw,26px);color:rgba(255,255,255,0.38);letter-spacing:4px;flex-shrink:0;`;
         overlay.appendChild(sub);
+
         field.appendChild(overlay);
     },
 
@@ -538,6 +566,13 @@ const ruotaOnline = {
                 case 'prenota_trip':
                     this._gestisciPrenotaTrip(dati);
                     break;
+                case 'vel_typing': {
+                    let disp = document.getElementById('vel-attesa-disp');
+                    if (disp && ruota.fraseCorrente) {
+                        ruota._renderSolDisplay(disp, dati.ans, dati.cur, ruota.COLORS[dati.playerIdx], false);
+                    }
+                    break;
+                }
             }
         } finally {
             ruota._onlineSoppressiAzioni = false;
