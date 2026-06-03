@@ -1607,7 +1607,7 @@ const ruota = {
         let tab = this._buildTabellone();
         let tabNW = 14 * this.CELL_W + 13 * this.CELL_GAP;
         let tabNH = 4  * this.CELL_H + 3  * this.CELL_GAP;
-        let sc = Math.min(1.0, (window.innerWidth - 32) / tabNW);
+        let sc = Math.min(1.0, (window.innerWidth - 8) / tabNW);
         tab.style.transform = `scale(${sc})`;
         tab.style.transformOrigin = 'top center';
         tab.style.marginBottom = Math.round((sc - 1) * tabNH) + 'px';
@@ -1701,12 +1701,12 @@ const ruota = {
     },
 
     // ── Render riga soluzione (riutilizzato da schermata attiva e waiting) ──
-    _renderSolDisplay(container, ansArr, curIdx, colore, blink) {
+    _renderSolDisplay(container, ansArr, curIdx, colore, blink, cellSizeCss, fontSizeCss) {
         const frase = (this.fraseCorrente?.frase || '').toUpperCase();
         const scoperte = this.fraseLettereScoperte || [];
         const isBlank = (i) => !scoperte[i] && /^[A-Z]$/.test(frase[i]);
-        const CS = `clamp(28px,5vw,50px)`;
-        const CF = `clamp(20px,3.8vw,38px)`;
+        const CS = cellSizeCss || `clamp(32px,6vw,56px)`;
+        const CF = fontSizeCss || `clamp(24px,4.5vw,44px)`;
         container.innerHTML = '';
         let i = 0;
         while (i < frase.length) {
