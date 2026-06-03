@@ -1404,31 +1404,44 @@ const ruota = {
         grafica.puliscifield();
         grafica._statusBar("← TORNA AL MENU","RUOTA DELLA FORTUNA",()=>{});
         let wrap=document.createElement("div");
-        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;padding:10px 16px 8px;overflow:hidden;box-sizing:border-box;`;
+        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 16px 24px;overflow:hidden;box-sizing:border-box;`;
+
+        // ── Tabellone (occupa tutto lo spazio disponibile sopra) ──
+        let tabWrap=document.createElement("div");
+        tabWrap.style.cssText=`flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:0;`;
         let tabEl=this._buildTabellone();
         let tabW = 14*this.CELL_W + 13*this.CELL_GAP;
         let tabScale=Math.min(1.0, (fieldWidth - 32) / tabW);
         tabEl.style.transform=`scale(${tabScale})`;
-        tabEl.style.transformOrigin='top center';
-        tabEl.style.marginBottom=Math.round((tabScale-1)*(4*this.CELL_H+3*this.CELL_GAP)*0.72)+'px';
+        tabEl.style.transformOrigin='center center';
+        tabEl.style.marginBottom=Math.round((tabScale-1)*(4*this.CELL_H+3*this.CELL_GAP)*0.5)+'px';
+        tabWrap.appendChild(tabEl);
+        wrap.appendChild(tabWrap);
+
+        // ── Sezione inferiore: banner + titolo + tasti (centrati e in fondo) ──
+        let bottom=document.createElement("div");
+        bottom.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;flex-shrink:0;`;
+
         let catBannerL = this._buildCatBanner(this.fraseCorrente ? this.fraseCorrente.categoria : '');
         catBannerL.style.cssText += 'margin:0;padding:7px 40px;font-size:24px;';
+
         let titolo=document.createElement("div");
         titolo.innerHTML=isRaddoppia
             ? `✖2 RADDOPPIA · Chiama una consonante`
             : (ruota._tipoAzione === 'jolly'
                 ? `🃏 JOLLY · Chiama una consonante per guadagnarlo!`
                 : `<strong style="color:#f0c800">${this._fmtEuro(this.valoreRuota)}</strong> · Chiama una consonante`);
-        titolo.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;color:white;text-align:left;width:100%;`;
-        // 2 righe di consonanti da sinistra
+        titolo.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;color:white;text-align:center;`;
+
+        // 2 righe di consonanti centrate
         const ROW1 = 'BCDFGHJKLMN';
         const ROW2 = 'PQRSTVWXYZ';
         const gap = 7;
-        const btnSize = Math.max(38, Math.min(72, Math.floor((window.innerWidth - 32 - 10*gap) / 11)));
+        const btnSize = Math.max(38, Math.min(80, Math.floor((fieldWidth * 0.55 - 10*gap) / 11)));
         const fontSize = Math.max(22, Math.round(btnSize * 0.62));
         const makeRow = (letters) => {
             let row = document.createElement("div");
-            row.style.cssText=`display:flex;gap:${gap}px;justify-content:flex-start;width:100%;`;
+            row.style.cssText=`display:flex;gap:${gap}px;justify-content:center;`;
             for (let l of letters) {
                 let btn=document.createElement("button");
                 btn.dataset.lettera=l;
@@ -1439,11 +1452,12 @@ const ruota = {
             }
             return row;
         };
-        wrap.appendChild(tabEl);
-        wrap.appendChild(catBannerL);
-        wrap.appendChild(titolo);
-        wrap.appendChild(makeRow(ROW1));
-        wrap.appendChild(makeRow(ROW2));
+
+        bottom.appendChild(catBannerL);
+        bottom.appendChild(titolo);
+        bottom.appendChild(makeRow(ROW1));
+        bottom.appendChild(makeRow(ROW2));
+        wrap.appendChild(bottom);
         field.appendChild(wrap);
         main.current="RuotaLettera";
     },
