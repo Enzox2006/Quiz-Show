@@ -304,6 +304,31 @@ const ruotaOnline = {
             if (ruota.turno !== self.mioIdx) return;
             self._giraRuotaOnline();
         };
+
+        // ─ 13. _passaTurno: solo il giocatore attivo lo esegue ────────
+        // Bug fix: gli spettatori ricevevano la chiamata a _confermaCons
+        // via _eseguiAzione, che internamente chiamava _passaTurno dopo 2s
+        // tramite _chiedeJolly/onNonUsa. Questo faceva avanzare ruota.turno
+        // in modo errato sul dispositivo dello spettatore, disabilitando i tasti.
+        const orig_passaTurno = ruota._passaTurno.bind(ruota);
+        ruota._passaTurno = function () {
+            if (ruota.turno !== self.mioIdx) return; // spettatori aspettano sync_stato
+            orig_passaTurno();
+        };
+
+        // ─ 14. _chiedeJolly: dialog solo per il giocatore attivo ──────
+        // Bug fix: il dialog del Jolly compariva su tutti i dispositivi.
+        // Gli spettatori devono solo attendere la sync_stato dall'host.
+        const orig_chiedeJolly = ruota._chiedeJolly.bind(ruota);
+        ruota._chiedeJolly = function (msgEvento, colorEvento, onUsa, onNonUsa) {
+            if (ruota.turno !== self.mioIdx) {
+                // Non sono il giocatore attivo: salta il dialog, esegui onNonUsa
+                // (che ora è sicura grazie al patch di _passaTurno)
+                onNonUsa();
+                return;
+            }
+            orig_chiedeJolly(msgEvento, colorEvento, onUsa, onNonUsa);
+        };
     },
 
     // ── Fix bottoni prenota velocissima ─────────────────────────────
