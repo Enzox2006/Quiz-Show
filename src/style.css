@@ -162,9 +162,75 @@ input[type="number"]::-webkit-outer-spin-button {
     pointer-events: none;
 }
 
+/* --- RUOTA DELLA FORTUNA: schermata chiama lettera --- */
+.ruota-lettera-screen {
+    position: absolute;
+    top: 64px;
+    left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px 16px 32px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.ruota-lettera-titolo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+.ruota-tastiera-riga {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.ruota-lettera-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.10);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.ruota-lettera-btn:hover {
+    background: #f0c800;
+    color: #1a0a3c;
+    border-color: #f0c800;
+    transform: scale(1.10);
+}
+
+.ruota-lettera-btn:disabled {
+    opacity: 0.25;
+    cursor: default;
+    transform: none;
+}
+
 /* --- OTTIMIZZAZIONE TESTI PER MOBILE --- */
 @media (max-width: 600px) {
     h1 {
         font-size: 1.8rem !important;
+    }
+
+    .ruota-lettera-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 22px;
+        gap: 8px;
     }
 }
