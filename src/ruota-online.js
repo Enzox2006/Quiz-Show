@@ -228,11 +228,11 @@ const ruotaOnline = {
             }
         };
 
-        // ─ 10b. _dopoRuota: spettatori impostano solo lo stato, niente UI ─
+        // ─ 10b. _dopoRuota: spettatori vedono la schermata lettere (disabilitata) ─
         const orig_dopoRuota = ruota._dopoRuota.bind(ruota);
         ruota._dopoRuota = function (sp, idx) {
             if (ruota.turno !== self.mioIdx) {
-                // Imposta lo stato (necessario per _confermaCons remota)
+                // Imposta stato (necessario per _confermaCons remota)
                 if (sp.tipo === 'jolly') {
                     ruota._jollyIdx = idx; ruota.valoreRuota = 200;
                     ruota.attesaLettera = true; ruota._tipoAzione = 'jolly';
@@ -255,18 +255,30 @@ const ruotaOnline = {
                           sp.tipo === 'jackpot'    ? '💰 JACKPOT!' :
                           sp.tipo === 'express'    ? '🚄 EXPRESS!' :
                           sp.tipo === 'raddoppia'  ? '✖2 RADDOPPIA!' : sp.label;
-                let col = (sp.tipo === 'bancarotta') ? '#ff4444' :
-                          (sp.tipo === 'passa')      ? '#888888' :
+                let col = sp.tipo === 'bancarotta' ? '#ff4444' :
+                          sp.tipo === 'passa'      ? '#888888' :
                           (sp.tipo === 'jolly' || sp.tipo === 'express' || sp.tipo === 'raddoppia') ? '#a855f7' : '#f0c800';
                 ruota._showToast(msg, col);
-                // Torna alla schermata gioco (evita _apriChiamataLettera stale)
-                setTimeout(() => {
-                    if (main.current === 'RuotaSpin') {
-                        grafica.puliscifield();
-                        ruota._renderGioco();
-                        main.current = 'RuotaGioco';
-                    }
-                }, 1200);
+                // Se richiede una lettera: apri la schermata lettere (disabilitata)
+                // Guard: solo se attesaLettera è ancora true al momento del timeout
+                if (ruota.attesaLettera) {
+                    const isRadd = sp.tipo === 'raddoppia';
+                    setTimeout(() => {
+                        if (ruota.attesaLettera && main.current === 'RuotaSpin') {
+                            ruota._apriChiamataLettera(isRadd);
+                            self._applicaBloccoUI();
+                        }
+                    }, 1200);
+                } else {
+                    // BANCAROTTA/PASSA/JACKPOT: torna a gioco e aspetta sync
+                    setTimeout(() => {
+                        if (main.current === 'RuotaSpin') {
+                            grafica.puliscifield();
+                            ruota._renderGioco();
+                            main.current = 'RuotaGioco';
+                        }
+                    }, 1200);
+                }
                 return;
             }
             orig_dopoRuota(sp, idx);
@@ -480,12 +492,38 @@ const ruotaOnline = {
         ruota._onlineSoppressiAzioni = true;
         try {
             switch (tipo) {
-                case 'lettera_cons':
+                case 'lettera_cons': {
+                    // Highlight lettera scelta sulla griglia spettatore
+                    if (main.current === 'RuotaLettera') {
+                        let btn = field.querySelector(`button[data-lettera="${dati.lettera}"]`);
+                        if (btn) {
+                            btn.style.background = 'rgba(240,200,0,0.35)';
+                            btn.style.borderColor = '#f0c800';
+                            btn.style.color = '#f0c800';
+                            btn.style.opacity = '1';
+                            btn.style.transform = 'scale(1.12)';
+                            btn.style.transition = 'all 0.15s';
+                        }
+                    }
                     ruota._confermaCons(dati.lettera, dati.isRaddoppia);
                     break;
-                case 'lettera_voc':
+                }
+                case 'lettera_voc': {
+                    // Highlight vocale scelta
+                    if (main.current === 'RuotaVocale') {
+                        let btn = Array.from(field.querySelectorAll('button')).find(b => b.innerHTML === dati.vocale);
+                        if (btn) {
+                            btn.style.background = 'rgba(240,200,0,0.35)';
+                            btn.style.borderColor = '#f0c800';
+                            btn.style.color = '#f0c800';
+                            btn.style.opacity = '1';
+                            btn.style.transform = 'scale(1.12)';
+                            btn.style.transition = 'all 0.15s';
+                        }
+                    }
                     ruota._confermaVocale(dati.vocale);
                     break;
+                }
                 case 'spin_start':
                     this._renderSpettatoreRuota();
                     break;
@@ -694,27 +732,46 @@ const ruotaOnline = {
         }
 
         // Aggiorna / crea banner
+        // Sulla schermata lettere/vocale: barra compatta nella status bar, non in fondo
+        const isLetterScreen = main.current === 'RuotaLettera' || main.current === 'RuotaVocale';
         let banner = document.getElementById('online-turno-banner');
         if (!isMio) {
-            if (!banner) {
-                banner = document.createElement('div');
-                banner.id = 'online-turno-banner';
-                banner.style.cssText = `
-                    position:fixed;bottom:0;left:0;right:0;
-                    background:rgba(10,0,30,0.94);
-                    border-top:2px solid rgba(255,255,255,0.1);
-                    padding:18px;text-align:center;z-index:8888;
-                    font-family:'Barlow Condensed',sans-serif;
-                    font-size:28px;font-weight:700;letter-spacing:3px;
-                    color:rgba(255,255,255,0.55);
-                `;
-                document.body.appendChild(banner);
-            }
             const nomeAttivo = ruota.nomi[ruota.turno] || `Giocatore ${ruota.turno + 1}`;
             const colore = ruota.COLORS[ruota.turno];
-            banner.innerHTML = `È il turno di <strong style="color:${colore}">${nomeAttivo}</strong>...`;
+            if (isLetterScreen) {
+                // Rimuovi il banner grande e mostra solo un chip nella status bar
+                if (banner) banner.remove();
+                let chip = document.getElementById('online-turno-chip');
+                if (!chip) {
+                    chip = document.createElement('div');
+                    chip.id = 'online-turno-chip';
+                    chip.style.cssText = `position:fixed;top:12px;right:90px;background:rgba(10,0,30,0.88);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:4px 14px;z-index:9999;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);white-space:nowrap;`;
+                    document.body.appendChild(chip);
+                }
+                chip.innerHTML = `Turno: <strong style="color:${colore}">${nomeAttivo}</strong>`;
+            } else {
+                let chip = document.getElementById('online-turno-chip');
+                if (chip) chip.remove();
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'online-turno-banner';
+                    banner.style.cssText = `
+                        position:fixed;bottom:0;left:0;right:0;
+                        background:rgba(10,0,30,0.94);
+                        border-top:2px solid rgba(255,255,255,0.1);
+                        padding:18px;text-align:center;z-index:8888;
+                        font-family:'Barlow Condensed',sans-serif;
+                        font-size:28px;font-weight:700;letter-spacing:3px;
+                        color:rgba(255,255,255,0.55);
+                    `;
+                    document.body.appendChild(banner);
+                }
+                banner.innerHTML = `È il turno di <strong style="color:${colore}">${nomeAttivo}</strong>...`;
+            }
         } else {
             if (banner) banner.remove();
+            let chip = document.getElementById('online-turno-chip');
+            if (chip) chip.remove();
         }
     },
 
