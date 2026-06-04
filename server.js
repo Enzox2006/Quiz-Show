@@ -180,16 +180,26 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Uscita volontaria: il giocatore torna al menù senza chiudere il browser
+    socket.on('lascia_stanza', () => {
+        if (!codiceStanza || !stanze[codiceStanza]) return;
+        const stanza = stanze[codiceStanza];
+        const player = stanza.giocatori.find(g => g.id === socket.id);
+        if (!player || player.disconnesso) return;
+        player.disconnesso = true;
+        io.to(codiceStanza).emit('giocatore_disconnesso', {
+            idx: player.idx,
+            nome: player.nome
+        });
+    });
+
     socket.on('disconnect', () => {
         if (!codiceStanza || !stanze[codiceStanza]) return;
         const stanza = stanze[codiceStanza];
         const player = stanza.giocatori.find(g => g.id === socket.id);
-        if (!player) return;
+        if (!player || player.disconnesso) return; // già gestito da lascia_stanza
 
-        // Marca come disconnesso — lo slot rimane riservato senza limite di tempo.
-        // Il giocatore può rientrare digitando nome + codice, oppure tramite token localStorage.
         player.disconnesso = true;
-
         io.to(codiceStanza).emit('giocatore_disconnesso', {
             idx: player.idx,
             nome: player.nome
