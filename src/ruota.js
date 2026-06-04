@@ -2114,6 +2114,10 @@ const ruota = {
         wrap.appendChild(scoreEl); wrap.appendChild(totLabel); wrap.appendChild(btn);
         field.appendChild(wrap);
         main.current="RuotaVittoriaRound";
+        if (typeof ruotaCpu !== 'undefined' && ruotaCpu._è(idx)) {
+            let _mc = mancheCorrente;
+            setTimeout(() => { if (main.current === 'RuotaVittoriaRound') ruota._avanzaManche(_mc); }, 3000);
+        }
     },
 
     // ── Il Triplete ────────────────────────────────────────────────
@@ -2150,6 +2154,8 @@ const ruota = {
         for (let i=0;i<this.fraseArray.length;i++)
             if (/[A-ZÀ-Öa-zà-ö]/i.test(this.fraseArray[i])) posizioni.push(i);
         posizioni = this._shuffleNoConsec(posizioni, p => this.fraseArray[p].toUpperCase());
+        this._trillettePosizioni = posizioni;
+        this._triletteRevIdx = 0;
         let revIdx=0;
 
         grafica.puliscifield();
@@ -2210,6 +2216,7 @@ const ruota = {
                         if (document.getElementById('ro-pausa-overlay')) return;
                         if (revIdx<posizioni.length){
                             ruota.fraseLettereScoperte[posizioni[revIdx++]]=true;
+                            ruota._triletteRevIdx = revIdx;
                             let t=document.getElementById("ruota-tabellone");
                             if(t)t.replaceWith(ruota._buildTabellone());
                             if(ruota._tutteScoperte()){clearInterval(ruota._triletteTimer);ruota._triletteTimer=null;}
@@ -2238,6 +2245,7 @@ const ruota = {
             if (document.getElementById('ro-pausa-overlay')) return;
             if(revIdx<posizioni.length){
                 ruota.fraseLettereScoperte[posizioni[revIdx++]]=true;
+                ruota._triletteRevIdx = revIdx;
                 let t=document.getElementById("ruota-tabellone");
                 if(t)t.replaceWith(ruota._buildTabellone());
                 if(ruota._tutteScoperte()){clearInterval(ruota._triletteTimer);ruota._triletteTimer=null;}
@@ -2397,12 +2405,18 @@ const ruota = {
                         return;
                     }
                     ruota._playWin();
-                    let valoreFinale = sp.tipo==='euro' ? (sp.valore===5000?5000:sp.valore+1000) : 0;
+                    let valoreFinale = sp.tipo==='euro' ? sp.valore+1000 : 0;
                     risultatoEl.innerHTML=`${sp.label} → Valore finale: ${ruota._fmtEuro(valoreFinale)}`;
                     ruota.faseGong=true;
                     ruota.valoreRuota=valoreFinale;
                     continuaBtn.style.display='block';
                     continuaBtn.onclick=()=>{ ruota._renderFinale(); main.current="RuotaFinale"; };
+                    // Auto-avanza per i bot (non aspettano il click)
+                    setTimeout(() => {
+                        if (ruota.faseGong && main.current !== 'RuotaFinale') {
+                            ruota._renderFinale(); main.current="RuotaFinale";
+                        }
+                    }, 3000);
                 }
             };
             requestAnimationFrame(anim);
