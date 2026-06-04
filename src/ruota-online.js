@@ -21,12 +21,9 @@ const ruotaOnline = {
                 if (raw) {
                     try {
                         const session = JSON.parse(raw);
-                        if (Date.now() - session.savedAt < 120000) {
-                            self._tryingReconnect = true;
-                            self.socket.emit('riconnetti', { token: session.token, codice: session.codice });
-                        } else {
-                            localStorage.removeItem('ruota_session');
-                        }
+                        // Nessun limite di tempo: il server decide se la sessione è ancora valida
+                        self._tryingReconnect = true;
+                        self.socket.emit('riconnetti', { token: session.token, codice: session.codice });
                     } catch (e) { localStorage.removeItem('ruota_session'); }
                 }
             }
@@ -106,9 +103,9 @@ const ruotaOnline = {
             ruota._showToast('⚠ ' + (msg || messaggio || 'Errore'), '#ff4444');
         });
 
-        // Disconnessione temporanea: periodo di grazia 30s
+        // Disconnessione: il giocatore può rientrare in qualsiasi momento con nome + codice
         s.on('giocatore_disconnesso', ({ idx, nome }) => {
-            ruota._showToast(`⚠ ${nome} si è disconnesso — 30s per rientrare`, '#ff8800', 3000);
+            ruota._showToast(`⚠ ${nome} si è disconnesso`, '#ff8800', 3000);
         });
 
         // Riconnessione riuscita
