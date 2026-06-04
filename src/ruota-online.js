@@ -1313,24 +1313,9 @@ const ruotaOnline = {
             grafica.puliscifield(); ruota.setup(); main.current = "RuotaSetup";
         });
 
-        const onGithub = window.location.hostname.endsWith('github.io');
-        const noServer = onGithub && !window.SOCKET_SERVER_URL;
-        let cardOnline = makeCard("🌐", "ONLINE",
-            noServer
-                ? "Online non disponibile su GitHub Pages.<br>Gioca dalla versione Replit per la modalità multiplayer."
-                : "Ogni giocatore usa il suo<br>dispositivo in tempo reale.",
-            () => {
-                if (noServer) {
-                    ruota._showToast('Online disponibile solo sulla versione Replit', '#ff8800', 3500);
-                    return;
-                }
-                ruotaOnline._connetti(); ruotaOnline._renderEntraLobby();
-            }
-        );
-        if (noServer) {
-            cardOnline.style.opacity = '0.5';
-            cardOnline.style.cursor = 'default';
-        }
+        let cardOnline = makeCard("🌐", "ONLINE", "Ogni giocatore usa il suo<br>dispositivo in tempo reale.", () => {
+            ruotaOnline._connetti(); ruotaOnline._renderEntraLobby();
+        });
 
         cards.appendChild(cardLocale); cards.appendChild(cardOnline);
         wrap.appendChild(title); wrap.appendChild(sub); wrap.appendChild(cards);
