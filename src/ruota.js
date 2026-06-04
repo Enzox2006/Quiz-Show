@@ -81,6 +81,8 @@ const ruota = {
     _raddoppioSecondi: 15,
     _raddoppioMancheScore: 0,
     _bonusCat: '',
+    _storiaManche: [],
+    _mancheDaSaltare: [],
 
     // ── Reset ──────────────────────────────────────────────────────
     reset() {
@@ -122,6 +124,8 @@ const ruota = {
         this._raddoppioSecondi = 15;
         this._raddoppioMancheScore = 0;
         this._bonusCat = '';
+        this._storiaManche = [];
+        this._mancheDaSaltare = [];
         // Cancella tutti i setTimeout pendenti (avanzamento manche)
         if (this._pendingTimeouts) this._pendingTimeouts.forEach(id => clearTimeout(id));
         this._pendingTimeouts = [];
@@ -685,7 +689,7 @@ const ruota = {
             ruota.reset(); grafica.puliscifield(); grafica.home(); main.current="Home";
         });
         let wrap=document.createElement("div");
-        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;padding:40px 140px;`;
+        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px 100px;overflow-y:auto;`;
         let title=document.createElement("div");
         title.innerHTML="INSERISCI I NOMI";
         title.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:54px;font-weight:800;letter-spacing:6px;color:white;`;
@@ -717,15 +721,47 @@ const ruota = {
             });
             inputs.push(inp); col.appendChild(lbl); col.appendChild(inp); inputsRow.appendChild(col);
         }
+        // ── Sezione selezione manche ──
+        let mancheNomi=['LA VELOCISSIMA','MANCHE 1','SE LA SAI RADDOPPI','IL JACKPOT','IL TRENO EXPRESS','IL TRIPLETE','LA SFIDA A TEMPO'];
+        let mancheAttive=[true,true,true,true,true,true,true];
+        let mancheSection=document.createElement("div");
+        mancheSection.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;`;
+        let mancheLabel=document.createElement("div");
+        mancheLabel.innerHTML="SELEZIONA LE MANCHE DA GIOCARE";
+        mancheLabel.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:5px;color:rgba(255,255,255,0.28);`;
+        let pillsRow=document.createElement("div");
+        pillsRow.style.cssText=`display:flex;flex-wrap:wrap;gap:10px;justify-content:center;`;
+        mancheNomi.forEach((nome,idx)=>{
+            let pill=document.createElement("button");
+            pill.innerHTML=nome;
+            pill.style.cssText=`padding:10px 22px;border-radius:40px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:2px;cursor:pointer;border:2px solid rgba(240,200,0,0.55);background:rgba(240,200,0,0.13);color:#f0c800;transition:all 0.15s;`;
+            pill.addEventListener('click',()=>{
+                let nAttive=mancheAttive.filter(x=>x).length;
+                if (mancheAttive[idx] && nAttive<=1) return;
+                mancheAttive[idx]=!mancheAttive[idx];
+                if (mancheAttive[idx]) {
+                    pill.style.background='rgba(240,200,0,0.13)'; pill.style.color='#f0c800';
+                    pill.style.borderColor='rgba(240,200,0,0.55)'; pill.style.opacity='1';
+                } else {
+                    pill.style.background='rgba(255,255,255,0.04)'; pill.style.color='rgba(255,255,255,0.22)';
+                    pill.style.borderColor='rgba(255,255,255,0.1)'; pill.style.opacity='0.55';
+                }
+            });
+            pillsRow.appendChild(pill);
+        });
+        mancheSection.appendChild(mancheLabel);
+        mancheSection.appendChild(pillsRow);
+
         let btn=document.createElement("button");
         btn.innerHTML="AVVIA LA PARTITA &#9654;";
-        btn.style.cssText=`background:#f0c800;color:#1a0a3c;border:none;border-radius:18px;padding:28px 120px;font-family:'Barlow Condensed',sans-serif;font-size:46px;font-weight:800;letter-spacing:4px;cursor:pointer;box-shadow:0 8px 50px rgba(240,200,0,0.4);`;
+        btn.style.cssText=`background:#f0c800;color:#1a0a3c;border:none;border-radius:18px;padding:26px 110px;font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;letter-spacing:4px;cursor:pointer;box-shadow:0 8px 50px rgba(240,200,0,0.4);`;
         btn.classList.add('btn-primary');
         btn.addEventListener('click',()=>{
             for (let i=0;i<3;i++) ruota.nomi[i]=inputs[i].value.trim().toUpperCase()||labels[i];
+            ruota._mancheDaSaltare=mancheAttive.map((a,i)=>a?-1:i).filter(i=>i>=0);
             ruota._avviaPartita();
         });
-        wrap.appendChild(title); wrap.appendChild(sub); wrap.appendChild(inputsRow); wrap.appendChild(btn);
+        wrap.appendChild(title); wrap.appendChild(sub); wrap.appendChild(inputsRow); wrap.appendChild(mancheSection); wrap.appendChild(btn);
         field.appendChild(wrap);
     },
 
@@ -860,8 +896,8 @@ const ruota = {
             if (ruota._velIdx >= ruota._velPosizioniLettere.length) {
                 clearInterval(_velTimerId);
                 if (ruota._termometroTimer === _velTimerId) ruota._termometroTimer = null;
-                ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
-                let _m=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_m),2500);
+                ruota._showToast("Nessuno si è prenotato!","#888");
+                let _m=ruota.manche; ruota._queueTimeout(()=>ruota._mostraFraseNascosta(()=>ruota._avanzaManche(_m)),1500);
                 return;
             }
             let pos = ruota._velPosizioniLettere[ruota._velIdx++];
@@ -872,8 +908,8 @@ const ruota = {
             if (ruota._tutteScoperte()) {
                 clearInterval(_velTimerId);
                 if (ruota._termometroTimer === _velTimerId) ruota._termometroTimer = null;
-                ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
-                let _m=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_m),2500);
+                ruota._showToast("Nessuno si è prenotato!","#888");
+                let _m=ruota.manche; ruota._queueTimeout(()=>ruota._mostraFraseNascosta(()=>ruota._avanzaManche(_m)),1500);
             }
         },2000);
     },
@@ -905,8 +941,8 @@ const ruota = {
                         let btn = document.getElementById(`vel-btn-${playerIdx}`);
                         if (btn) { btn.style.opacity = '0.25'; btn.style.pointerEvents = 'none'; }
                         if (ruota._termometroEliminate.length >= 3) {
-                            ruota._showToast("Tutti eliminati! Prossima manche.", "#888");
-                            let _mv2 = ruota.manche; ruota._queueTimeout(() => ruota._avanzaManche(_mv2), 2000);
+                            ruota._showToast("Tutti eliminati!", "#888");
+                            let _mv2 = ruota.manche; ruota._queueTimeout(() => ruota._mostraFraseNascosta(()=>ruota._avanzaManche(_mv2)), 1500);
                         } else { ruota._velocissima_resumeTimer(); }
                     }, 1400);
                 }
@@ -925,8 +961,8 @@ const ruota = {
             if (ruota._velIdx >= ruota._velPosizioniLettere.length) {
                 clearInterval(_resumeTimerId);
                 if (ruota._termometroTimer === _resumeTimerId) ruota._termometroTimer = null;
-                ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
-                let _mr=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_mr),2500);
+                ruota._showToast("Nessuno si è prenotato!","#888");
+                let _mr=ruota.manche; ruota._queueTimeout(()=>ruota._mostraFraseNascosta(()=>ruota._avanzaManche(_mr)),1500);
                 return;
             }
             let pos = ruota._velPosizioniLettere[ruota._velIdx++];
@@ -936,8 +972,8 @@ const ruota = {
             if (ruota._tutteScoperte()) {
                 clearInterval(_resumeTimerId);
                 if (ruota._termometroTimer === _resumeTimerId) ruota._termometroTimer = null;
-                ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
-                let _mr=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_mr),2500);
+                ruota._showToast("Nessuno si è prenotato!","#888");
+                let _mr=ruota.manche; ruota._queueTimeout(()=>ruota._mostraFraseNascosta(()=>ruota._avanzaManche(_mr)),1500);
             }
         },2000);
     },
@@ -1934,8 +1970,12 @@ const ruota = {
         clearInterval(this._gongTimer);       this._gongTimer = null;
         clearInterval(this._raddoppioTimer);  this._raddoppioTimer = null;
         if (this._pendingTimeouts) { this._pendingTimeouts.forEach(id=>clearTimeout(id)); this._pendingTimeouts=[]; }
+        // Salva snapshot punteggi per il riepilogo finale
+        this._storiaManche.push({m: mancheVinta, s: [...this.punteggioGioco]});
         // Usa mancheVinta (catturato al momento della vittoria) per calcolare la prossima
         let prossima = mancheVinta + 1;
+        // Salta le manches disabilitate dall'utente
+        while (prossima <= 6 && this._mancheDaSaltare.includes(prossima)) prossima++;
         // Aggiorna manche solo se non è già più avanti (previene doppio-increment)
         if (ruota.manche < prossima) ruota.manche = prossima;
         if (ruota.manche <= 6) ruota._iniziaManche(); else ruota._verdetto();
@@ -1997,7 +2037,13 @@ const ruota = {
     _prossimaTriplete() {
         if (this._triletteTimer) { clearInterval(this._triletteTimer); this._triletteTimer=null; }
         this._trilettePrenotatoDa=-1;
-        this._triletteEliminate=[];  // reset per ogni sotto-manche: l'errore non vale per i tabelloni successivi
+        this._triletteEliminate=[];
+        if (this.fraseCorrente && this.sottomanche > 0) {
+            this._mostraFraseNascosta(() => ruota._caricaTriplete()); return;
+        }
+        ruota._caricaTriplete();
+    },
+    _caricaTriplete() {
         if (this.sottomanche===0) {
             let tutteCategorie=[...new Set(FRASI_RUOTA.map(f=>f.categoria))];
             let disponibili=tutteCategorie.filter(c=>!this._categorieUsate.includes(c));
@@ -2965,6 +3011,36 @@ const ruota = {
         );
     },
 
+    // ── Rivela frase nascosta (quando nessuno ha vinto) ────────────
+    _mostraFraseNascosta(onDone) {
+        if (!this.fraseCorrente) { onDone(); return; }
+        for (let i=0;i<this.fraseLettereScoperte.length;i++) this.fraseLettereScoperte[i]=true;
+        let ov=document.createElement("div");
+        ov.style.cssText=`position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:9800;`;
+        let tag=document.createElement("div");
+        tag.innerHTML="LA FRASE ERA";
+        tag.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:22px;letter-spacing:8px;color:rgba(255,255,255,0.3);`;
+        let frase=document.createElement("div");
+        frase.innerHTML=this.fraseCorrente.frase.toUpperCase();
+        frase.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:58px;font-weight:800;color:#f0c800;text-align:center;max-width:1100px;line-height:1.2;padding:0 40px;`;
+        let cat=document.createElement("div");
+        cat.innerHTML=this.fraseCorrente.categoria.toUpperCase();
+        cat.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:22px;letter-spacing:6px;color:rgba(255,255,255,0.28);`;
+        let barWrap=document.createElement("div");
+        barWrap.style.cssText=`width:260px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-top:12px;`;
+        let bar=document.createElement("div");
+        bar.style.cssText=`height:100%;width:100%;background:#f0c800;transform-origin:left;animation:_rfShrink 2.5s linear forwards;`;
+        barWrap.appendChild(bar);
+        if (!document.getElementById('_rfkf')) {
+            let st=document.createElement("style"); st.id='_rfkf';
+            st.textContent=`@keyframes _rfShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}`;
+            document.head.appendChild(st);
+        }
+        ov.appendChild(tag); ov.appendChild(frase); ov.appendChild(cat); ov.appendChild(barWrap);
+        document.body.appendChild(ov);
+        setTimeout(()=>{ ov.remove(); onDone(); }, 2700);
+    },
+
     // ── Verdetto Finale ────────────────────────────────────────────
     _verdetto() {
         // ── GUARDIA ASSOLUTA ──────────────────────────────────────────
@@ -2981,38 +3057,122 @@ const ruota = {
         clearInterval(this._gongTimer);
         grafica.puliscifield();
         grafica._statusBar("← TORNA AL MENU","RUOTA DELLA FORTUNA",()=>{ruota.reset();grafica.puliscifield();grafica.home();main.current="Home";});
-        let vincitore=0;
-        for (let i=1;i<3;i++) if (this.punteggioGioco[i]>this.punteggioGioco[vincitore]) vincitore=i;
+
+        // Ordina i giocatori per punteggio decrescente
+        let order=[0,1,2].sort((a,b)=>this.punteggioGioco[b]-this.punteggioGioco[a]);
+        let vincitore=order[0];
+        let medals=['🥇','🥈','🥉'];
+
         let wrap=document.createElement("div");
-        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:36px;`;
-        let tag=document.createElement("div");
-        tag.innerHTML="VINCITORE DELLA PUNTATA";
-        tag.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:24px;letter-spacing:8px;color:rgba(255,255,255,0.3);`;
-        let nome=document.createElement("div");
-        nome.innerHTML=this._nomeG(vincitore);
-        nome.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:100px;font-weight:800;color:${this.COLORS[vincitore]};line-height:1;text-shadow:0 0 80px ${this.COLORS[vincitore]}88;`;
-        let score=document.createElement("div");
-        score.innerHTML=this._fmtEuro(this.punteggioGioco[vincitore]);
-        score.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:80px;font-weight:800;color:#f0c800;line-height:1;`;
-        let allScores=document.createElement("div");
-        allScores.style.cssText=`display:flex;gap:24px;margin-top:16px;`;
-        for (let i=0;i<3;i++) {
-            let c=document.createElement("div");
-            c.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(255,255,255,0.05);border-radius:12px;padding:14px 32px;`;
-            let n=document.createElement("div");
-            n.innerHTML=this._nomeG(i);
-            n.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:${this.COLORS[i]};`;
-            let s=document.createElement("div");
-            s.innerHTML=this._fmtEuro(this.punteggioGioco[i]);
-            s.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:white;`;
-            c.appendChild(n); c.appendChild(s); allScores.appendChild(c);
+        wrap.style.cssText=`position:absolute;top:64px;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:36px 60px 48px;gap:32px;`;
+
+        // ── Intestazione vincitore ──
+        let header=document.createElement("div");
+        header.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:6px;`;
+        let htag=document.createElement("div");
+        htag.innerHTML="VINCITORE DELLA PUNTATA";
+        htag.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:21px;letter-spacing:8px;color:rgba(255,255,255,0.28);`;
+        let hname=document.createElement("div");
+        hname.innerHTML=this._nomeG(vincitore);
+        hname.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:82px;font-weight:800;line-height:1;color:${this.COLORS[vincitore]};text-shadow:0 0 80px ${this.COLORS[vincitore]}88;`;
+        let hscore=document.createElement("div");
+        hscore.innerHTML=this._fmtEuro(this.punteggioGioco[vincitore]);
+        hscore.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;color:#f0c800;line-height:1;`;
+        header.appendChild(htag); header.appendChild(hname); header.appendChild(hscore);
+
+        // ── Podio 1°/2°/3° ──
+        let podiumRow=document.createElement("div");
+        podiumRow.style.cssText=`display:flex;gap:16px;align-items:flex-end;`;
+        let podiumOrder=[order[1], order[0], order[2]]; // 2°, 1°, 3° per effetto podio visivo
+        let podiumRanks=[1, 0, 2];
+        podiumOrder.forEach((playerIdx, col)=>{
+            let rank=podiumRanks[col];
+            let heights=[90,130,60];
+            let card=document.createElement("div");
+            card.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:2px solid ${this.COLORS[playerIdx]}40;border-radius:14px;padding:18px 28px;min-width:220px;`;
+            let medal=document.createElement("div");
+            medal.innerHTML=medals[rank];
+            medal.style.cssText=`font-size:${rank===0?46:34}px;line-height:1;`;
+            let pname=document.createElement("div");
+            pname.innerHTML=this._nomeG(playerIdx);
+            pname.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:${rank===0?26:21}px;font-weight:800;color:${this.COLORS[playerIdx]};text-align:center;`;
+            let pscore=document.createElement("div");
+            pscore.innerHTML=this._fmtEuro(this.punteggioGioco[playerIdx]);
+            pscore.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:${rank===0?36:26}px;font-weight:800;color:white;`;
+            let base=document.createElement("div");
+            base.style.cssText=`width:100%;height:${heights[col]}px;background:${this.COLORS[playerIdx]}18;border-radius:0 0 10px 10px;margin:-18px -28px -18px;margin-top:8px;`;
+            card.appendChild(medal); card.appendChild(pname); card.appendChild(pscore); card.appendChild(base);
+            podiumRow.appendChild(card);
+        });
+
+        // ── Tabella riepilogo manche ──
+        let NOMI_MANCHE=['La Velocissima','Manche 1','Se la Sai Raddoppi','Il Jackpot','Il Treno Express','Il Triplete','La Sfida a Tempo'];
+        let recapWrap=document.createElement("div");
+        recapWrap.style.cssText=`width:100%;max-width:920px;`;
+        let recapLabel=document.createElement("div");
+        recapLabel.innerHTML="RIEPILOGO PER MANCHE";
+        recapLabel.style.cssText=`font-family:'Barlow Condensed',sans-serif;font-size:19px;letter-spacing:6px;color:rgba(255,255,255,0.28);text-align:center;margin-bottom:14px;`;
+        recapWrap.appendChild(recapLabel);
+
+        let tbl=document.createElement("table");
+        tbl.style.cssText=`width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;`;
+        // thead
+        let thead=document.createElement("thead");
+        let htr=document.createElement("tr");
+        ['MANCHE', this._nomeG(0), this._nomeG(1), this._nomeG(2)].forEach((txt,ci)=>{
+            let th=document.createElement("th");
+            th.innerHTML=txt;
+            th.style.cssText=`padding:10px 14px;text-align:${ci===0?'left':'center'};font-size:17px;letter-spacing:2px;color:${ci===0?'rgba(255,255,255,0.3)':this.COLORS[ci-1]};border-bottom:1px solid rgba(255,255,255,0.1);font-weight:700;`;
+            htr.appendChild(th);
+        });
+        thead.appendChild(htr); tbl.appendChild(thead);
+        // tbody
+        let tbody=document.createElement("tbody");
+        let prevS=[0,0,0];
+        this._storiaManche.forEach((snap)=>{
+            let tr=document.createElement("tr");
+            tr.style.cssText=`border-bottom:1px solid rgba(255,255,255,0.05);`;
+            let td0=document.createElement("td");
+            td0.innerHTML=NOMI_MANCHE[snap.m]||`Manche ${snap.m+1}`;
+            td0.style.cssText=`padding:9px 14px;font-size:19px;color:rgba(255,255,255,0.55);font-weight:600;`;
+            tr.appendChild(td0);
+            for (let i=0;i<3;i++){
+                let delta=snap.s[i]-prevS[i];
+                let td=document.createElement("td");
+                td.innerHTML=delta>0?`+${this._fmtEuro(delta)}`:`—`;
+                td.style.cssText=`padding:9px 14px;text-align:center;font-size:21px;font-weight:800;color:${delta>0?this.COLORS[i]:'rgba(255,255,255,0.18)'};`;
+                tr.appendChild(td);
+            }
+            prevS=[...snap.s];
+            tbody.appendChild(tr);
+        });
+        tbl.appendChild(tbody);
+        // tfoot totali
+        let tfoot=document.createElement("tfoot");
+        let ftr=document.createElement("tr");
+        ftr.style.cssText=`border-top:2px solid rgba(255,255,255,0.15);`;
+        let ftd0=document.createElement("td");
+        ftd0.innerHTML="TOTALE";
+        ftd0.style.cssText=`padding:13px 14px;font-size:21px;font-weight:800;letter-spacing:3px;color:rgba(255,255,255,0.45);`;
+        ftr.appendChild(ftd0);
+        for (let i=0;i<3;i++){
+            let td=document.createElement("td");
+            td.innerHTML=this._fmtEuro(this.punteggioGioco[i]);
+            let isWinner=(i===vincitore);
+            td.style.cssText=`padding:13px 14px;text-align:center;font-size:26px;font-weight:800;color:${this.COLORS[i]};${isWinner?'text-shadow:0 0 20px '+this.COLORS[i]+'99;':''}`;
+            ftr.appendChild(td);
         }
+        tfoot.appendChild(ftr); tbl.appendChild(tfoot);
+        recapWrap.appendChild(tbl);
+
+        // ── Bottone nuova partita ──
         let btn=document.createElement("button");
         btn.innerHTML="NUOVA PARTITA";
         btn.style.cssText=`background:#f0c800;color:#1a0a3c;border:none;border-radius:14px;padding:24px 100px;font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:800;letter-spacing:4px;cursor:pointer;`;
         btn.classList.add('btn-primary');
         btn.addEventListener('click',()=>{ ruota.reset(); grafica.puliscifield(); grafica.home(); main.current="Home"; });
-        wrap.appendChild(tag); wrap.appendChild(nome); wrap.appendChild(score); wrap.appendChild(allScores); wrap.appendChild(btn);
+
+        wrap.appendChild(header); wrap.appendChild(podiumRow); wrap.appendChild(recapWrap); wrap.appendChild(btn);
         field.appendChild(wrap);
     },
 };
