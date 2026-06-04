@@ -1942,6 +1942,7 @@ const ruota = {
                     });
                     let ov=document.getElementById("triplete-overlay"); if(ov)ov.remove();
                     ruota._triletteTimer=setInterval(()=>{
+                        if (document.getElementById('ro-pausa-overlay')) return;
                         if (revIdx<posizioni.length){
                             ruota.fraseLettereScoperte[posizioni[revIdx++]]=true;
                             let t=document.getElementById("ruota-tabellone");
@@ -1966,6 +1967,7 @@ const ruota = {
         field.appendChild(wrap);
         main.current="RuotaTriplete";
         this._triletteTimer=setInterval(()=>{
+            if (document.getElementById('ro-pausa-overlay')) return;
             if(revIdx<posizioni.length){
                 ruota.fraseLettereScoperte[posizioni[revIdx++]]=true;
                 let t=document.getElementById("ruota-tabellone");
