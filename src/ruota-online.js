@@ -10,6 +10,8 @@ const ruotaOnline = {
     _sessionActive: false,
     _tryingReconnect: false,
     _mancheDaSaltareOnline: [],
+    _cpuSlots: [],
+    _lobbyGiocatori: [],
 
     _connetti() {
         if (this.socket && this.socket.connected) return this.socket;
@@ -69,7 +71,7 @@ const ruotaOnline = {
             self._aggiornaListaLobby(giocatori);
         });
 
-        s.on('partita_iniziata', ({ nomi, mancheDaSaltare }) => {
+        s.on('partita_iniziata', ({ nomi, mancheDaSaltare, cpuSlots }) => {
             self.nomiGiocatori = nomi;
             ruota.reset();
             ruota.nomi = [...nomi];
@@ -78,6 +80,9 @@ const ruotaOnline = {
             if (!self._patchedRuota) {
                 self._patchRuotaPerOnline();
                 self._patchedRuota = true;
+            }
+            if (self.mioIdx === 0 && cpuSlots && cpuSlots.length > 0) {
+                ruotaCpu.attiva(cpuSlots, 'media');
             }
             ruota._avviaPartita();
             main.current = 'RuotaGioco';
@@ -1421,6 +1426,7 @@ const ruotaOnline = {
         mancheHostWrap.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:10px;`;
         if (isHost) {
             ruotaOnline._mancheDaSaltareOnline = [];
+            ruotaOnline._cpuSlots = [];
             const _mancheNomi = ['LA VELOCISSIMA','MANCHE 1','SE LA SAI RADDOPPI','IL JACKPOT','IL TRENO EXPRESS','IL TRIPLETE','LA SFIDA A TEMPO'];
             const _mancheAttive = [true,true,true,true,true,true,true];
             let mLabel = document.createElement("div");
@@ -1458,7 +1464,10 @@ const ruotaOnline = {
             let pronto = giocatori.length >= 3;
             btnInzia.style.cssText = `background:${pronto ? '#f0c800' : 'rgba(255,255,255,0.1)'};color:${pronto ? '#1a0a3c' : 'rgba(255,255,255,0.25)'};border:none;border-radius:16px;padding:26px 110px;font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:800;letter-spacing:4px;cursor:${pronto ? 'pointer' : 'default'};pointer-events:${pronto ? 'auto' : 'none'};`;
             btnInzia.addEventListener('click', () => {
-                ruotaOnline.socket.emit('inizia_partita', { mancheDaSaltare: ruotaOnline._mancheDaSaltareOnline || [] });
+                ruotaOnline.socket.emit('inizia_partita', {
+                    mancheDaSaltare: ruotaOnline._mancheDaSaltareOnline || [],
+                    cpuSlots: ruotaOnline._cpuSlots || []
+                });
             });
             btnIniziaWrap.appendChild(btnInzia);
         } else {
@@ -1475,41 +1484,93 @@ const ruotaOnline = {
     },
 
     _buildListaGiocatori(container, giocatori) {
+        ruotaOnline._lobbyGiocatori = giocatori;
         container.innerHTML = '';
         const slotColors = ['#ff4466', '#4488ff', '#22cc88'];
+        const isHost = ruotaOnline.mioIdx === 0;
         for (let i = 0; i < 3; i++) {
             let g = giocatori[i];
+            let isCpu = (ruotaOnline._cpuSlots || []).includes(i);
             let slot = document.createElement("div");
-            slot.style.cssText = `width:240px;background:rgba(255,255,255,0.04);border:2px solid ${g ? slotColors[i] + '66' : 'rgba(255,255,255,0.08)'};border-radius:16px;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;`;
-            let numEl = document.createElement("div"); numEl.innerHTML = `P${i + 1}`;
-            numEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:4px;color:${slotColors[i]};opacity:${g ? '1' : '0.3'};`;
-            let nomeEl = document.createElement("div"); nomeEl.innerHTML = g ? g.nome : '—';
-            nomeEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:${g ? 'white' : 'rgba(255,255,255,0.2)'};text-align:center;`;
-            let badge = document.createElement("div");
-            badge.innerHTML = g ? (g.idx === 0 ? '👑 HOST' : '✓ PRONTO') : 'IN ATTESA';
-            badge.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:2px;color:${g ? slotColors[i] : 'rgba(255,255,255,0.15)'};`;
-            if (g && g.idx === this.mioIdx) {
-                slot.style.borderColor = slotColors[i];
-                slot.style.background = `rgba(${i === 0 ? '255,68,102' : i === 1 ? '68,136,255' : '34,204,136'},0.08)`;
+            if (g) {
+                slot.style.cssText = `width:240px;background:rgba(255,255,255,0.04);border:2px solid ${slotColors[i] + '66'};border-radius:16px;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;`;
+                let numEl = document.createElement("div"); numEl.innerHTML = `P${i + 1}`;
+                numEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:4px;color:${slotColors[i]};`;
+                let nomeEl = document.createElement("div"); nomeEl.innerHTML = g.nome;
+                nomeEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:white;text-align:center;`;
+                let badge = document.createElement("div");
+                badge.innerHTML = g.idx === 0 ? '👑 HOST' : '✓ PRONTO';
+                badge.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:2px;color:${slotColors[i]};`;
+                if (g.idx === this.mioIdx) {
+                    slot.style.borderColor = slotColors[i];
+                    slot.style.background = `rgba(${i === 0 ? '255,68,102' : i === 1 ? '68,136,255' : '34,204,136'},0.08)`;
+                }
+                slot.appendChild(numEl); slot.appendChild(nomeEl); slot.appendChild(badge);
+            } else if (isCpu) {
+                slot.style.cssText = `width:240px;background:rgba(240,200,0,0.05);border:2px solid ${slotColors[i] + '55'};border-radius:16px;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;${isHost ? 'cursor:pointer;' : ''}`;
+                if (isHost) {
+                    slot.title = 'Clicca per rimuovere il bot';
+                    slot.addEventListener('click', () => {
+                        ruotaOnline._cpuSlots = (ruotaOnline._cpuSlots || []).filter(s => s !== i);
+                        ruotaOnline._buildListaGiocatori(container, ruotaOnline._lobbyGiocatori);
+                        ruotaOnline._updateLobbyPronto();
+                    });
+                }
+                let numEl = document.createElement("div"); numEl.innerHTML = `P${i + 1}`;
+                numEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:4px;color:${slotColors[i]};`;
+                let botIco = document.createElement("div"); botIco.innerHTML = '🤖';
+                botIco.style.cssText = `font-size:38px;line-height:1;`;
+                let nomeEl = document.createElement("div"); nomeEl.innerHTML = 'BOT';
+                nomeEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:rgba(255,255,255,0.45);`;
+                let badge = document.createElement("div");
+                badge.innerHTML = isHost ? '✕ &nbsp;RIMUOVI' : '🤖 &nbsp;CPU';
+                badge.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;color:${slotColors[i]};`;
+                slot.appendChild(numEl); slot.appendChild(botIco); slot.appendChild(nomeEl); slot.appendChild(badge);
+            } else {
+                slot.style.cssText = `width:240px;background:rgba(255,255,255,0.04);border:2px dashed ${isHost ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)'};border-radius:16px;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;${isHost ? 'cursor:pointer;' : ''}`;
+                if (isHost) {
+                    slot.title = 'Clicca per aggiungere un bot';
+                    slot.addEventListener('click', () => {
+                        if (!(ruotaOnline._cpuSlots || []).includes(i)) {
+                            ruotaOnline._cpuSlots = [...(ruotaOnline._cpuSlots || []), i];
+                        }
+                        ruotaOnline._buildListaGiocatori(container, ruotaOnline._lobbyGiocatori);
+                        ruotaOnline._updateLobbyPronto();
+                    });
+                }
+                let numEl = document.createElement("div"); numEl.innerHTML = `P${i + 1}`;
+                numEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:4px;color:${slotColors[i]};opacity:0.3;`;
+                let nomeEl = document.createElement("div"); nomeEl.innerHTML = isHost ? '＋' : '—';
+                nomeEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;color:rgba(255,255,255,0.18);`;
+                let badge = document.createElement("div");
+                badge.innerHTML = isHost ? 'AGGIUNGI BOT' : 'IN ATTESA';
+                badge.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.15);`;
+                slot.appendChild(numEl); slot.appendChild(nomeEl); slot.appendChild(badge);
             }
-            slot.appendChild(numEl); slot.appendChild(nomeEl); slot.appendChild(badge);
             container.appendChild(slot);
         }
     },
 
+    _updateLobbyPronto() {
+        let giocatori = ruotaOnline._lobbyGiocatori || [];
+        let total = giocatori.length + (ruotaOnline._cpuSlots || []).length;
+        let attesa = document.getElementById("lobby-attesa");
+        if (attesa) attesa.innerHTML = total < 3 ? `In attesa di ${3 - total} giocatore/i...` : '';
+        let btn = document.getElementById("lobby-inizia-btn");
+        if (btn) {
+            let pronto = total >= 3;
+            btn.style.background = pronto ? '#f0c800' : 'rgba(255,255,255,0.1)';
+            btn.style.color = pronto ? '#1a0a3c' : 'rgba(255,255,255,0.25)';
+            btn.style.cursor = pronto ? 'pointer' : 'default';
+            btn.style.pointerEvents = pronto ? 'auto' : 'none';
+        }
+    },
+
     _aggiornaListaLobby(giocatori) {
+        ruotaOnline._cpuSlots = (ruotaOnline._cpuSlots || []).filter(s => !giocatori[s]);
         this.nomiGiocatori = giocatori.map(g => g.nome);
         let lista = document.getElementById("lobby-lista");
         if (lista) this._buildListaGiocatori(lista, giocatori);
-        let attesa = document.getElementById("lobby-attesa");
-        if (attesa) attesa.innerHTML = giocatori.length < 3 ? `In attesa di ${3 - giocatori.length} giocatore/i...` : '';
-        let btnInzia = document.getElementById("lobby-inizia-btn");
-        if (btnInzia) {
-            let pronto = giocatori.length >= 3;
-            btnInzia.style.background = pronto ? '#f0c800' : 'rgba(255,255,255,0.1)';
-            btnInzia.style.color = pronto ? '#1a0a3c' : 'rgba(255,255,255,0.25)';
-            btnInzia.style.cursor = pronto ? 'pointer' : 'default';
-            btnInzia.style.pointerEvents = pronto ? 'auto' : 'none';
-        }
+        this._updateLobbyPronto();
     }
 };
