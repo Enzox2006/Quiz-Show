@@ -771,6 +771,8 @@ const ruota = {
         this._giocoTerminato=false;
         if (!this._pendingTimeouts) this._pendingTimeouts=[];
         this._pendingTimeouts.forEach(id=>clearTimeout(id)); this._pendingTimeouts=[];
+        // Salta le manches disabilitate fin dall'inizio
+        while (this.manche <= 6 && this._mancheDaSaltare.includes(this.manche)) this.manche++;
         this._iniziaManche();
     },
 
@@ -1978,7 +1980,8 @@ const ruota = {
         while (prossima <= 6 && this._mancheDaSaltare.includes(prossima)) prossima++;
         // Aggiorna manche solo se non è già più avanti (previene doppio-increment)
         if (ruota.manche < prossima) ruota.manche = prossima;
-        if (ruota.manche <= 6) ruota._iniziaManche(); else ruota._verdetto();
+        if (ruota.manche <= 6) ruota._iniziaManche();
+        else { ruota._giocoTerminato = true; ruota._verdetto(); }
     },
 
     // ── Vittoria Round ─────────────────────────────────────────────
