@@ -13,6 +13,7 @@ const ruotaCpu = {
         this.slots = [];
         this._cpuActing = false;
         this._velBooked = [];
+        this._velAnswering = false;
         if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
     },
 
@@ -38,6 +39,7 @@ const ruotaCpu = {
             w += 100;
             if (main.current !== fromState || w > (timeout || 4000)) {
                 clearInterval(chk);
+                this._velAnswering = false;
                 this._cpuActing = false;
             }
         }, 100);
@@ -65,6 +67,8 @@ const ruotaCpu = {
 
     // ── La Velocissima ──────────────────────────────────────────────────
     _velCheck() {
+        // Blocca se un bot sta già rispondendo (evita prenotazioni multiple simultanee)
+        if (this._velAnswering) return;
         if (!ruota._velPosizioniLettere || !ruota._velPosizioniLettere.length) return;
         let total = ruota._velPosizioniLettere.length;
         let revealed = ruota._velIdx || 0;
@@ -77,18 +81,22 @@ const ruotaCpu = {
             if (this._velBooked.includes(idx)) continue;
             if ((ruota._termometroEliminate || []).includes(idx)) continue;
             this._velBooked.push(idx);
+            this._velAnswering = true;
             this._cpuActing = true;
             setTimeout(() => {
-                if (main.current !== 'RuotaTermometro') { this._cpuActing = false; return; }
+                if (main.current !== 'RuotaTermometro') {
+                    this._velAnswering = false; this._cpuActing = false; return;
+                }
                 ruota._velocissimaPrenota(idx);
-                this._releaseWhenStateChanges('RuotaTermometro');
+                // Timeout lungo: l'intera sequenza prenota→risposta→avanzaManche dura ~6-8s
+                this._releaseWhenStateChanges('RuotaTermometro', 12000);
             }, this._delay(400));
             break;
         }
     },
 
     _handleVelocissima(playerIdx) {
-        clearInterval(ruota._termometroTimer); ruota._termometroTimer = null;
+        // Il timer è già stato fermato da _velocissimaPrenota prima di chiamare questo metodo
         let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
         let risposta = this._rispostaFrase(corretta);
         ruota._showToast(`🤖 ${ruota._nomeG(playerIdx)} si prenota!`, ruota.COLORS[playerIdx], 1200);
@@ -102,6 +110,8 @@ const ruotaCpu = {
                     ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, '#22cc66');
                     let _m = ruota.manche;
                     ruota._queueTimeout(() => { this._postAction(); ruota._avanzaManche(_m); }, 2000);
+                    // _cpuActing e _velAnswering rilasciati da _releaseWhenStateChanges
+                    // quando _avanzaManche cambia main.current
                 } else {
                     ruota._playWrongSolution();
                     ruota._termometroEliminate.push(playerIdx);
@@ -113,12 +123,15 @@ const ruotaCpu = {
                             ruota._showToast('Tutti eliminati!', '#888');
                             let _m2 = ruota.manche;
                             ruota._queueTimeout(() => ruota._mostraFraseNascosta(() => ruota._avanzaManche(_m2)), 1500);
+                            // rilasciato da _releaseWhenStateChanges
                         } else {
                             ruota._velocissima_resumeTimer();
+                            // stato resta RuotaTermometro: rilasciamo manualmente
+                            this._velAnswering = false;
+                            this._cpuActing = false;
                         }
                     }, 1400);
                 }
-                this._cpuActing = false;
             }, this._delay(1500));
         }, 900);
     },
