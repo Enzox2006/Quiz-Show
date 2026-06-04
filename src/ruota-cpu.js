@@ -57,6 +57,16 @@ const ruotaCpu = {
         let t = ruota.turno;
 
         if (s === 'RuotaTermometro') { this._velCheck(); return; }
+
+        // Bonus "Se la Sai Raddoppi": solo per il vincitore della manche
+        if ((s === 'RuotaBonusSel' || s === 'RuotaBonusGioco') &&
+            typeof ruota._raddoppioVincitore !== 'undefined' &&
+            this._è(ruota._raddoppioVincitore)) {
+            if      (s === 'RuotaBonusSel')  this._azioneBonusSel();
+            else if (s === 'RuotaBonusGioco') this._azioneBonusGioco();
+            return;
+        }
+
         if (!this._è(t)) return;
 
         if      (s === 'RuotaGioco')   this._azioneGioco();
@@ -287,6 +297,75 @@ const ruotaCpu = {
                 this._azioneSoluzione();
             }
         }, this._delay(800));
+    },
+
+    // ── Se la Sai Raddoppi — Selezione lettere (RuotaBonusSel) ──────────
+    _azioneBonusSel() {
+        this._cpuActing = true;
+        let frase = (ruota.fraseCorrente?.frase || '').toUpperCase();
+        let CONS = 'BCDFGHJKLMNPQRSTVWXYZ';
+        let VOCI = 'AEIOU';
+        // Conta le occorrenze nella frase nascosta
+        let consFq = {}, vocFq = {};
+        for (let c of frase) {
+            if (CONS.includes(c)) consFq[c] = (consFq[c] || 0) + 1;
+            if (VOCI.includes(c)) vocFq[c] = (vocFq[c] || 0) + 1;
+        }
+        // Prende le 4 consonanti più frequenti nella frase, poi riempie con le più comuni
+        let cons = Object.keys(consFq).sort((a, b) => consFq[b] - consFq[a]).slice(0, 4);
+        for (let c of this.FREQ_CONS) {
+            if (cons.length >= 4) break;
+            if (!cons.includes(c)) cons.push(c);
+        }
+        // Vocale più frequente nella frase, altrimenti A
+        let voc = Object.keys(vocFq).sort((a, b) => vocFq[b] - vocFq[a])[0] || 'A';
+
+        setTimeout(() => {
+            if (main.current !== 'RuotaBonusSel') { this._cpuActing = false; return; }
+            let v = ruota._raddoppioVincitore;
+            ruota._showToast(
+                `🤖 ${ruota._nomeG(v)} sceglie: ${cons.join(' ')} + ${voc}`,
+                ruota.COLORS[v], 2200
+            );
+            setTimeout(() => {
+                if (main.current !== 'RuotaBonusSel') { this._cpuActing = false; return; }
+                ruota._raddoppioConsSel = [...cons];
+                ruota._raddoppioVocaleSel = voc;
+                ruota._confermaBonusLettere();
+                this._releaseWhenStateChanges('RuotaBonusSel');
+            }, 1500);
+        }, this._delay(1000));
+    },
+
+    // ── Se la Sai Raddoppi — Gioco con countdown (RuotaBonusGioco) ──────
+    _azioneBonusGioco() {
+        this._cpuActing = true;
+        let corretta = (ruota.fraseCorrente?.frase || '').toUpperCase();
+        let acc = this.difficolta === 'difficile' ? 0.96 :
+                  this.difficolta === 'media'     ? 0.82 : 0.55;
+        // Pensa un po' (ma non più dei secondi rimasti)
+        let maxWait = Math.max(500, ((ruota._raddoppioSecondi || 15) - 3) * 1000);
+        let thinkTime = Math.min(this._delay(2500), maxWait);
+
+        setTimeout(() => {
+            if (main.current !== 'RuotaBonusGioco') { this._cpuActing = false; return; }
+            clearInterval(ruota._raddoppioTimer);
+            let v = ruota._raddoppioVincitore;
+            if (Math.random() < acc) {
+                ruota._showToast(`🤖 ${ruota._nomeG(v)}: "${corretta}"`, ruota.COLORS[v], 2000);
+                setTimeout(() => {
+                    ruota._bonusCorretta();
+                    this._releaseWhenStateChanges('RuotaBonusGioco');
+                }, 1500);
+            } else {
+                let sbagliata = this._rispostaFrase(corretta);
+                ruota._showToast(`🤖 ${ruota._nomeG(v)}: "${sbagliata}"`, ruota.COLORS[v], 2000);
+                setTimeout(() => {
+                    ruota._bonusErrata();
+                    this._releaseWhenStateChanges('RuotaBonusGioco');
+                }, 1500);
+            }
+        }, thinkTime);
     },
 
     // ── Helpers ─────────────────────────────────────────────────────────
