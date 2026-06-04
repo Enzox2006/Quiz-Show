@@ -215,6 +215,10 @@ const ruotaCpu = {
                 return;
             }
         }
+        // Manche 6 post-gong, in attesa del passaggio a RuotaFinale: non fare nulla
+        if (ruota.manche === 6 && ruota.faseGong) {
+            this._cpuActing = false; return;
+        }
         // Soglie più conservative: il bot non tenta prima che siano visibili abbastanza lettere
         let sogliaSol = this.difficolta === 'difficile' ? 0.72 :
                         this.difficolta === 'media'     ? 0.80 : 0.90;
