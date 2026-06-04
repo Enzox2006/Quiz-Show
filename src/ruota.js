@@ -1850,7 +1850,7 @@ const ruota = {
 
         let ov = document.createElement("div");
         ov.id = overlayId || 'soluzione-overlay';
-        ov.style.cssText = `position:${posFixed?'fixed':'absolute'};top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:8000;padding:14px 16px;box-sizing:border-box;overflow-y:auto;`;
+        ov.style.cssText = `position:${posFixed?'fixed':'absolute'};top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:8000;padding:8px 16px;box-sizing:border-box;overflow:hidden;`;
 
         // Titolo giocatore — usa stessa classe della schermata consonanti
         let titEl = document.createElement("div");
@@ -1859,11 +1859,13 @@ const ruota = {
         titEl.style.cssText += `color:${colore};letter-spacing:3px;font-size:clamp(18px,3.2vw,34px);flex-shrink:0;`;
         ov.appendChild(titEl);
 
-        // Tabellone — stessa formula di scala della schermata consonanti
+        // Tabellone — scala in base a larghezza E altezza viewport per evitare overflow
         let tab = this._buildTabellone();
         let tabNW = 14 * this.CELL_W + 13 * this.CELL_GAP;
         let tabNH = 4  * this.CELL_H + 3  * this.CELL_GAP;
-        let sc = Math.min(1.0, (window.innerWidth - 8) / tabNW);
+        let scW = Math.min(1.0, (window.innerWidth - 8) / tabNW);
+        let scH = (window.innerHeight * 0.26) / tabNH;
+        let sc = Math.min(scW, scH);
         tab.style.transform = `scale(${sc})`;
         tab.style.transformOrigin = 'top center';
         tab.style.marginBottom = Math.round((sc - 1) * tabNH) + 'px';
@@ -1934,12 +1936,12 @@ const ruota = {
 
         let annBtn = document.createElement("button");
         annBtn.innerHTML = annullaTesto || '← ANNULLA';
-        annBtn.style.cssText = `flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(18px,2.6vw,32px);font-weight:700;cursor:pointer;`;
+        annBtn.style.cssText = `flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:10px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(16px,2.2vw,28px);font-weight:700;cursor:pointer;`;
         annBtn.addEventListener('click', () => { closeOv(); if (onAnnulla) onAnnulla(); });
 
         let confBtn = document.createElement("button");
         confBtn.innerHTML = '✓ CONFERMA SOLUZIONE';
-        confBtn.style.cssText = `flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(18px,2.6vw,32px);font-weight:800;cursor:pointer;`;
+        confBtn.style.cssText = `flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:10px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(16px,2.2vw,28px);font-weight:800;cursor:pointer;`;
         confBtn.addEventListener('click', () => { let r = ans.join(''); closeOv(); onConferma(r); });
 
         bRow.appendChild(annBtn); bRow.appendChild(confBtn);
@@ -1961,8 +1963,8 @@ const ruota = {
         const frase = (this.fraseCorrente?.frase || '').toUpperCase();
         const scoperte = this.fraseLettereScoperte || [];
         const isBlank = (i) => !scoperte[i] && /^[A-Z]$/.test(frase[i]);
-        const CS = cellSizeCss || `clamp(32px,6vw,56px)`;
-        const CF = fontSizeCss || `clamp(24px,4.5vw,44px)`;
+        const CS = cellSizeCss || `clamp(26px,4vw,44px)`;
+        const CF = fontSizeCss || `clamp(18px,3vw,34px)`;
         container.innerHTML = '';
         let i = 0;
         while (i < frase.length) {
