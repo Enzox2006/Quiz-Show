@@ -14,17 +14,22 @@ const ruotaOnline = {
         if (this.socket && this.socket.connected) return this.socket;
         const self = this;
         this.socket = io(window.SOCKET_SERVER_URL || '');
-        // Al (ri)collegamento: tenta riconnessione automatica se c'è una sessione salvata
+        // Al (ri)collegamento: tenta riconnessione automatica SOLO se questa scheda
+        // aveva una sessione attiva (sessionStorage, che si svuota alla chiusura della scheda).
+        // localStorage rimane solo come dati di supporto (token/codice) per il rejoin manuale.
         this.socket.on('connect', () => {
             if (!self._sessionActive) {
+                const guard = sessionStorage.getItem('ruota_session_active');
                 const raw = localStorage.getItem('ruota_session');
-                if (raw) {
+                if (guard && raw) {
                     try {
                         const session = JSON.parse(raw);
-                        // Nessun limite di tempo: il server decide se la sessione è ancora valida
                         self._tryingReconnect = true;
                         self.socket.emit('riconnetti', { token: session.token, codice: session.codice });
-                    } catch (e) { localStorage.removeItem('ruota_session'); }
+                    } catch (e) {
+                        localStorage.removeItem('ruota_session');
+                        sessionStorage.removeItem('ruota_session_active');
+                    }
                 }
             }
         });
@@ -41,9 +46,9 @@ const ruotaOnline = {
             self.mioIdx = idx;
             self._sessionActive = true;
             self._tryingReconnect = false;
-            localStorage.setItem('ruota_session', JSON.stringify({
-                token, codice, nome: (giocatori[idx] || {}).nome || '', idx, savedAt: Date.now()
-            }));
+            const sessione = JSON.stringify({ token, codice, nome: (giocatori[idx] || {}).nome || '', idx, savedAt: Date.now() });
+            localStorage.setItem('ruota_session', sessione);
+            sessionStorage.setItem('ruota_session_active', '1');
             self._renderLobby(giocatori, true);
         });
 
@@ -52,9 +57,9 @@ const ruotaOnline = {
             self.mioIdx = idx;
             self._sessionActive = true;
             self._tryingReconnect = false;
-            localStorage.setItem('ruota_session', JSON.stringify({
-                token, codice, nome: (giocatori[idx] || {}).nome || '', idx, savedAt: Date.now()
-            }));
+            const sessione = JSON.stringify({ token, codice, nome: (giocatori[idx] || {}).nome || '', idx, savedAt: Date.now() });
+            localStorage.setItem('ruota_session', sessione);
+            sessionStorage.setItem('ruota_session_active', '1');
             self._renderLobby(giocatori, false);
         });
 
@@ -160,6 +165,7 @@ const ruotaOnline = {
             localStorage.setItem('ruota_session', JSON.stringify({
                 token, codice, nome, idx, savedAt: Date.now()
             }));
+            sessionStorage.setItem('ruota_session_active', '1');
             if (partitaIniziata) {
                 ruota.nomi = giocatori.map(g => g.nome);
                 if (!self._patchedRuota) { self._patchRuotaPerOnline(); self._patchedRuota = true; }
@@ -756,12 +762,15 @@ const ruotaOnline = {
 
     _clearSession() {
         localStorage.removeItem('ruota_session');
+        sessionStorage.removeItem('ruota_session_active');
         this._sessionActive = false;
+        const hadRoom = !!this.codiceStanza;
         this.mioIdx = -1;
         this.codiceStanza = null;
-        // Disconnetti il socket: il server riceve la disconnessione,
-        // marca il giocatore come disconnesso ed emette giocatore_disconnesso agli altri.
+        // Avvisa esplicitamente il server che il giocatore sta uscendo volontariamente.
+        // Questo è più affidabile del solo socket.disconnect() perché è sincrono lato server.
         if (this.socket && this.socket.connected) {
+            if (hadRoom) this.socket.emit('lascia_stanza');
             this.socket.disconnect();
         }
         // Rimuovi overlay di pausa se presente
