@@ -943,11 +943,11 @@ const ruota = {
 
     _velocissimaPrenota(playerIdx) {
         if (this._termometroEliminate.includes(playerIdx)) return;
+        clearInterval(this._termometroTimer); this._termometroTimer = null;
         if (typeof ruotaCpu !== 'undefined' && ruotaCpu._è(playerIdx)) {
             ruotaCpu._handleVelocissima(playerIdx);
             return;
         }
-        clearInterval(this._termometroTimer); this._termometroTimer = null;
         ruota._buildVKSoluzione({
             titolo: `${this._nomeG(playerIdx)} &mdash; DAI LA SOLUZIONE`,
             colore: this.COLORS[playerIdx],
