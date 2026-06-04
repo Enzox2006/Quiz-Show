@@ -1547,7 +1547,6 @@ const ruota = {
                 let spiccioVincente = Math.floor(normalized / sliceAngle) % n;
                 let sp = ruota.SPICCHI[spiccioVincente];
                 risultatoEl.innerHTML = sp.label;
-                ruota._playWin();
                 setTimeout(() => onResult(sp, spiccioVincente), 1300);
             }
         };
