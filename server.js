@@ -105,13 +105,13 @@ io.on('connection', (socket) => {
         io.to(codice).emit('aggiorna_lobby', { giocatori: stanza.giocatori });
     });
 
-    socket.on('inizia_partita', () => {
+    socket.on('inizia_partita', ({ mancheDaSaltare } = {}) => {
         if (!codiceStanza) return;
         const stanza = stanze[codiceStanza];
         if (!stanza || stanza.host !== socket.id) return;
         stanza.partitaIniziata = true;
         const nomi = stanza.giocatori.map(g => g.nome);
-        io.to(codiceStanza).emit('partita_iniziata', { nomi });
+        io.to(codiceStanza).emit('partita_iniziata', { nomi, mancheDaSaltare: mancheDaSaltare || [] });
     });
 
     socket.on('azione', ({ tipo, dati }) => {
