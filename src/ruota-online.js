@@ -103,14 +103,43 @@ const ruotaOnline = {
             ruota._showToast('⚠ ' + (msg || messaggio || 'Errore'), '#ff4444');
         });
 
-        // Disconnessione: il giocatore può rientrare in qualsiasi momento con nome + codice
+        // Disconnessione: pausa il gioco fino alla riconnessione
         s.on('giocatore_disconnesso', ({ idx, nome }) => {
             ruota._showToast(`⚠ ${nome} si è disconnesso`, '#ff8800', 3000);
+            // Mostra overlay di pausa se siamo in una schermata di gioco attiva (non lobby)
+            const schermateNonBloccanti = ['RuotaLobby', 'RuotaScelta', 'RuotaRiconnessione', 'Home'];
+            if (self.codiceStanza && main.current && !schermateNonBloccanti.includes(main.current)
+                    && !document.getElementById('ro-pausa-overlay')) {
+                let ov = document.createElement('div');
+                ov.id = 'ro-pausa-overlay';
+                ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;background:rgba(5,0,20,0.90);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;backdrop-filter:blur(6px);';
+                let ic = document.createElement('div');
+                ic.innerHTML = '⏸';
+                ic.style.cssText = 'font-size:90px;line-height:1;';
+                let msg = document.createElement('div');
+                msg.innerHTML = `<span style="color:#ff8800">${nome}</span> si è disconnesso`;
+                msg.style.cssText = "font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:800;letter-spacing:3px;color:white;text-align:center;";
+                let sub = document.createElement('div');
+                sub.innerHTML = 'Gioco in pausa — in attesa che rientri…';
+                sub.style.cssText = "font-family:'Barlow',sans-serif;font-size:26px;color:rgba(255,255,255,0.38);text-align:center;";
+                ov.appendChild(ic); ov.appendChild(msg); ov.appendChild(sub);
+                // Solo l'host può scegliere di proseguire senza di lui
+                if (self.mioIdx === 0) {
+                    let continua = document.createElement('button');
+                    continua.innerHTML = 'PROSEGUI SENZA DI LUI →';
+                    continua.style.cssText = "background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.38);border:1px solid rgba(255,255,255,0.16);border-radius:12px;padding:14px 36px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:2px;cursor:pointer;margin-top:12px;";
+                    continua.addEventListener('click', () => { let o = document.getElementById('ro-pausa-overlay'); if (o) o.remove(); });
+                    ov.appendChild(continua);
+                }
+                document.body.appendChild(ov);
+            }
         });
 
-        // Riconnessione riuscita
+        // Riconnessione riuscita: rimuovi overlay di pausa
         s.on('giocatore_riconnesso', ({ idx, nome, giocatori }) => {
             ruota._showToast(`✓ ${nome} si è riconnesso!`, '#22cc66', 2000);
+            let ov = document.getElementById('ro-pausa-overlay');
+            if (ov) ov.remove();
             if (main.current === 'RuotaLobby') self._aggiornaListaLobby(giocatori);
         });
 
@@ -728,6 +757,9 @@ const ruotaOnline = {
     _clearSession() {
         localStorage.removeItem('ruota_session');
         this._sessionActive = false;
+        // Rimuovi overlay di pausa se presente
+        let ov = document.getElementById('ro-pausa-overlay');
+        if (ov) ov.remove();
     },
 
     _renderAttesaRiconnessione() {
