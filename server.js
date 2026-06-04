@@ -20,7 +20,6 @@ const io = new Server(server, {
 app.use(express.static(path.join(__dirname)));
 
 const stanze = {};
-const graceTimers = {}; // token → timer ID
 
 function generaCodice() {
     return String(Math.floor(1000 + Math.random() * 9000));
@@ -56,10 +55,42 @@ io.on('connection', (socket) => {
             socket.emit('errore', { messaggio: 'Stanza non trovata' });
             return;
         }
+
+        // Caso 1: nome corrisponde a un giocatore disconnesso → ripristina il suo slot
+        const existing = stanza.giocatori.find(
+            g => g.disconnesso && g.nome.trim().toUpperCase() === (nome || '').trim().toUpperCase()
+        );
+        if (existing) {
+            const oldId = existing.id;
+            existing.id = socket.id;
+            existing.disconnesso = false;
+            codiceStanza = codice;
+            socket.join(codice);
+            if (stanza.host === oldId) stanza.host = socket.id;
+
+            socket.emit('riconnesso', {
+                codice,
+                idx: existing.idx,
+                nome: existing.nome,
+                token: existing.token,
+                giocatori: stanza.giocatori,
+                partitaIniziata: stanza.partitaIniziata
+            });
+            io.to(codice).emit('giocatore_riconnesso', {
+                idx: existing.idx,
+                nome: existing.nome,
+                giocatori: stanza.giocatori
+            });
+            return;
+        }
+
+        // Caso 2: stanza piena (tutti e 3 gli slot occupati, anche da disconnessi)
         if (stanza.giocatori.length >= 3) {
             socket.emit('errore', { messaggio: 'Stanza piena' });
             return;
         }
+
+        // Caso 3: nuovo giocatore
         codiceStanza = codice;
         const token = generaToken();
         const idx = stanza.giocatori.length;
@@ -109,6 +140,7 @@ io.on('connection', (socket) => {
         socket.to(codiceStanza).emit('richiedi_sync');
     });
 
+    // Riconnessione tramite token (ricaricamento pagina con sessione localStorage)
     socket.on('riconnetti', ({ token, codice }) => {
         const stanza = stanze[codice];
         if (!stanza) {
@@ -121,15 +153,9 @@ io.on('connection', (socket) => {
             return;
         }
         if (!player.disconnesso) {
-            // Sessione già attiva: non mostrare errore, ignora silenziosamente
+            // Sessione già attiva: ignora silenziosamente
             socket.emit('riconnessione_fallita', { motivo: null });
             return;
-        }
-
-        // Cancella il timer di grazia
-        if (graceTimers[token]) {
-            clearTimeout(graceTimers[token]);
-            delete graceTimers[token];
         }
 
         const oldId = player.id;
@@ -137,11 +163,7 @@ io.on('connection', (socket) => {
         player.disconnesso = false;
         codiceStanza = codice;
         socket.join(codice);
-
-        // Ripristina host se era lui
-        if (stanza.host === oldId) {
-            stanza.host = socket.id;
-        }
+        if (stanza.host === oldId) stanza.host = socket.id;
 
         socket.emit('riconnesso', {
             codice,
@@ -151,7 +173,6 @@ io.on('connection', (socket) => {
             giocatori: stanza.giocatori,
             partitaIniziata: stanza.partitaIniziata
         });
-
         io.to(codice).emit('giocatore_riconnesso', {
             idx: player.idx,
             nome: player.nome,
@@ -165,37 +186,14 @@ io.on('connection', (socket) => {
         const player = stanza.giocatori.find(g => g.id === socket.id);
         if (!player) return;
 
+        // Marca come disconnesso — lo slot rimane riservato senza limite di tempo.
+        // Il giocatore può rientrare digitando nome + codice, oppure tramite token localStorage.
         player.disconnesso = true;
-        const disconnectedSocketId = socket.id;
-        const stanzaCode = codiceStanza;
 
-        io.to(stanzaCode).emit('giocatore_disconnesso', {
+        io.to(codiceStanza).emit('giocatore_disconnesso', {
             idx: player.idx,
             nome: player.nome
         });
-
-        // Periodo di grazia: 30 secondi per riconnettersi
-        graceTimers[player.token] = setTimeout(() => {
-            const s = stanze[stanzaCode];
-            if (!s) { delete graceTimers[player.token]; return; }
-
-            s.giocatori = s.giocatori.filter(g => g.token !== player.token);
-            delete graceTimers[player.token];
-
-            if (s.giocatori.length === 0) {
-                delete stanze[stanzaCode];
-            } else {
-                if (s.host === disconnectedSocketId) {
-                    const primo = s.giocatori.find(g => !g.disconnesso);
-                    if (primo) s.host = primo.id;
-                }
-                io.to(stanzaCode).emit('giocatore_rimosso', {
-                    idx: player.idx,
-                    nome: player.nome,
-                    giocatori: s.giocatori
-                });
-            }
-        }, 30000);
     });
 });
 
