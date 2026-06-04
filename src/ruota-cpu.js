@@ -5,6 +5,7 @@ const ruotaCpu = {
     _pollTimer: null,
     _cpuActing: false,
     _velBooked: [],
+    _velAnswering: false,
 
     FREQ_CONS: ['R','S','T','N','L','M','C','D','P','B','V','G','F','H','Z','J','K','Q','W','X','Y'],
     FREQ_VOC: ['A','E','I','O','U'],
@@ -32,7 +33,6 @@ const ruotaCpu = {
     },
 
     // Aspetta che main.current esca dallo stato `fromState` prima di liberare il lock.
-    // Evita che il poll riparta mentre la transizione è ancora in un setTimeout interno.
     _releaseWhenStateChanges(fromState, timeout) {
         let w = 0;
         let chk = setInterval(() => {
@@ -57,6 +57,7 @@ const ruotaCpu = {
         let t = ruota.turno;
 
         if (s === 'RuotaTermometro') { this._velCheck(); return; }
+        if (s === 'RuotaTriplete')   { this._triletteCheck(); return; }
 
         // Bonus "Se la Sai Raddoppi": solo per il vincitore della manche
         if ((s === 'RuotaBonusSel' || s === 'RuotaBonusGioco') &&
@@ -77,7 +78,6 @@ const ruotaCpu = {
 
     // ── La Velocissima ──────────────────────────────────────────────────
     _velCheck() {
-        // Blocca se un bot sta già rispondendo (evita prenotazioni multiple simultanee)
         if (this._velAnswering) return;
         if (!ruota._velPosizioniLettere || !ruota._velPosizioniLettere.length) return;
         let total = ruota._velPosizioniLettere.length;
@@ -98,7 +98,6 @@ const ruotaCpu = {
                     this._velAnswering = false; this._cpuActing = false; return;
                 }
                 ruota._velocissimaPrenota(idx);
-                // Timeout lungo: l'intera sequenza prenota→risposta→avanzaManche dura ~6-8s
                 this._releaseWhenStateChanges('RuotaTermometro', 12000);
             }, this._delay(400));
             break;
@@ -106,7 +105,6 @@ const ruotaCpu = {
     },
 
     _handleVelocissima(playerIdx) {
-        // Il timer è già stato fermato da _velocissimaPrenota prima di chiamare questo metodo
         let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
         let risposta = this._rispostaFrase(corretta);
         ruota._showToast(`🤖 ${ruota._nomeG(playerIdx)} si prenota!`, ruota.COLORS[playerIdx], 1200);
@@ -120,8 +118,6 @@ const ruotaCpu = {
                     ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, '#22cc66');
                     let _m = ruota.manche;
                     ruota._queueTimeout(() => { this._postAction(); ruota._avanzaManche(_m); }, 2000);
-                    // _cpuActing e _velAnswering rilasciati da _releaseWhenStateChanges
-                    // quando _avanzaManche cambia main.current
                 } else {
                     ruota._playWrongSolution();
                     ruota._termometroEliminate.push(playerIdx);
@@ -133,10 +129,8 @@ const ruotaCpu = {
                             ruota._showToast('Tutti eliminati!', '#888');
                             let _m2 = ruota.manche;
                             ruota._queueTimeout(() => ruota._mostraFraseNascosta(() => ruota._avanzaManche(_m2)), 1500);
-                            // rilasciato da _releaseWhenStateChanges
                         } else {
                             ruota._velocissima_resumeTimer();
-                            // stato resta RuotaTermometro: rilasciamo manualmente
                             this._velAnswering = false;
                             this._cpuActing = false;
                         }
@@ -144,6 +138,60 @@ const ruotaCpu = {
                 }
             }, this._delay(1500));
         }, 900);
+    },
+
+    // ── Il Triplete ─────────────────────────────────────────────────────
+    _triletteCheck() {
+        if (ruota._trilettePrenotatoDa >= 0) return;
+        if (!ruota._trillettePosizioni || !ruota._trillettePosizioni.length) return;
+        let total = ruota._trillettePosizioni.length;
+        let revealed = ruota._triletteRevIdx || 0;
+        let pct = revealed / total;
+        let threshold = this.difficolta === 'difficile' ? 0.30 :
+                        this.difficolta === 'media'     ? 0.50 : 0.72;
+        if (pct < threshold) return;
+
+        for (let idx of this.slots) {
+            if ((ruota._triletteEliminate || []).includes(idx)) continue;
+            this._cpuActing = true;
+            ruota._trilettePrenotatoDa = idx;
+            clearInterval(ruota._triletteTimer); ruota._triletteTimer = null;
+            // Dim all prenota buttons
+            for (let j = 0; j < 3; j++) {
+                let pb = document.getElementById(`triplete-prenota-${j}`);
+                if (pb) { pb.style.opacity='0.3'; pb.style.pointerEvents='none'; }
+            }
+            ruota._showToast(`🤖 ${ruota._nomeG(idx)} si prenota!`, ruota.COLORS[idx], 900);
+            setTimeout(() => {
+                if (main.current !== 'RuotaTriplete') { this._cpuActing = false; return; }
+                this._handleTriplete(idx);
+            }, this._delay(500));
+            break;
+        }
+    },
+
+    _handleTriplete(idx) {
+        let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
+        let risposta = this._rispostaFrase(corretta);
+        ruota._showToast(`🤖 ${ruota._nomeG(idx)}: "${risposta}"`, ruota.COLORS[idx], 2200);
+        setTimeout(() => {
+            if (risposta === corretta) {
+                ruota._confermaTriplete(true, idx);
+            } else {
+                // Risposta sbagliata: logica identica a onSbagliata
+                ruota._triletteEliminate.push(idx);
+                ruota._trilettePrenotatoDa = -1;
+                for (let j = 0; j < 3; j++) {
+                    if ((ruota._triletteEliminate || []).includes(j)) continue;
+                    let pb = document.getElementById(`triplete-prenota-${j}`);
+                    if (pb && !this._è(j)) {
+                        pb.style.opacity = '1'; pb.style.pointerEvents = 'auto';
+                    }
+                }
+                ruota._triletteResume();
+            }
+            this._cpuActing = false;
+        }, this._delay(1500));
     },
 
     // ── Turno principale (RuotaGioco) ───────────────────────────────────
@@ -155,8 +203,9 @@ const ruotaCpu = {
             if ((ruota.fraseLettereScoperte || [])[i] || !/[A-Z]/i.test(frase[i])) scoperte++;
         }
         let pct = frase.length > 0 ? scoperte / frase.length : 0;
-        let sogliaSol = this.difficolta === 'difficile' ? 0.42 :
-                        this.difficolta === 'media'     ? 0.62 : 0.84;
+        // Soglie più conservative: il bot non tenta prima che siano visibili abbastanza lettere
+        let sogliaSol = this.difficolta === 'difficile' ? 0.72 :
+                        this.difficolta === 'media'     ? 0.80 : 0.90;
 
         let tutteVoc = ruota._tutteVocaliRivelate ? ruota._tutteVocaliRivelate() : true;
         let tutteConRiv = ruota._tutteConsonantiRivelate ? ruota._tutteConsonantiRivelate() : false;
@@ -177,7 +226,7 @@ const ruotaCpu = {
         }, this._delay());
     },
 
-    // ── Gira la ruota (con animazione visibile) ─────────────────────────
+    // ── Gira la ruota ───────────────────────────────────────────────────
     _azioneSpin() {
         if (!this._è(ruota.turno) || main.current !== 'RuotaGioco') {
             this._cpuActing = false; return;
@@ -186,16 +235,16 @@ const ruotaCpu = {
             if (!this._è(ruota.turno)) { this._cpuActing = false; return; }
             ruota._dopoRuota(sp, idx);
             this._postAction();
-            // Tieni _cpuActing=true finché la schermata consonante si apre;
-            // evita che il poll giri di nuovo la ruota nel frattempo.
             this._releaseWhenStateChanges('RuotaSpin', 6000);
         });
     },
 
     // ── Scelta consonante (RuotaLettera) ────────────────────────────────
+    // Quando faseGong è true usa _confermaConsGong invece di _confermaCons
     _azioneLettera() {
         this._cpuActing = true;
         let isRaddoppia = ruota._tipoAzione === 'raddoppia';
+        let isGong = ruota.faseGong === true;
         setTimeout(() => {
             if (main.current !== 'RuotaLettera' || !this._è(ruota.turno)) {
                 this._cpuActing = false; return;
@@ -204,10 +253,12 @@ const ruotaCpu = {
             ruota._showToast(`🤖 ${ruota._nomeTurno()} sceglie: ${l}`, ruota.COLORS[ruota.turno], 900);
             setTimeout(() => {
                 if (main.current !== 'RuotaLettera') { this._cpuActing = false; return; }
-                ruota._confermaCons(l, isRaddoppia);
+                if (isGong) {
+                    ruota._confermaConsGong(l);
+                } else {
+                    ruota._confermaCons(l, isRaddoppia);
+                }
                 this._postAction();
-                // NON rilasciare subito: _confermaCons cambia stato via setTimeout interno.
-                // Aspettiamo che main.current esca da RuotaLettera.
                 this._releaseWhenStateChanges('RuotaLettera');
             }, 700);
         }, this._delay(700));
@@ -240,10 +291,10 @@ const ruotaCpu = {
         }, 800);
     },
 
-    // ── Soluzione (mostra la risposta prima di confermare) ───────────────
+    // ── Soluzione — costruisce la risposta solo dalle lettere rivelate ───
     _azioneSoluzione() {
-        let corretta = ruota.fraseCorrente?.frase.toUpperCase() || '';
-        let risposta = this._rispostaFrase(corretta);
+        let risposta = this._rispostaFraseGioco();
+        let corretta = (ruota.fraseCorrente?.frase || '').toUpperCase();
         let statoCorrente = main.current;
         ruota._showToast(`🤖 ${ruota._nomeTurno()} prova: "${risposta}"`, ruota.COLORS[ruota.turno], 2500);
         setTimeout(() => {
@@ -276,8 +327,22 @@ const ruotaCpu = {
             if ((ruota.fraseLettereScoperte || [])[i] || !/[A-Z]/i.test(frase[i])) scoperte++;
         }
         let pct = frase.length > 0 ? scoperte / frase.length : 0;
-        let sogliaSol = this.difficolta === 'difficile' ? 0.48 :
-                        this.difficolta === 'media'     ? 0.68 : 0.84;
+        let sogliaSol = this.difficolta === 'difficile' ? 0.72 :
+                        this.difficolta === 'media'     ? 0.80 : 0.90;
+
+        // Finestra post-consonante nel Gong (5 secondi per dare la soluzione).
+        // Il bot tenta solo se ha abbastanza lettere visibili, altrimenti lascia scadere il timer.
+        if (ruota.faseGong && ruota._gongSolWindow) {
+            setTimeout(() => {
+                if (main.current !== 'RuotaFinale') { this._cpuActing = false; return; }
+                if (pct >= sogliaSol) {
+                    this._azioneSoluzione();
+                } else {
+                    this._cpuActing = false; // lascia scadere i 5 secondi
+                }
+            }, this._delay(600));
+            return;
+        }
 
         setTimeout(() => {
             if (main.current !== 'RuotaFinale' || !this._è(ruota.turno)) {
@@ -305,19 +370,16 @@ const ruotaCpu = {
         let frase = (ruota.fraseCorrente?.frase || '').toUpperCase();
         let CONS = 'BCDFGHJKLMNPQRSTVWXYZ';
         let VOCI = 'AEIOU';
-        // Conta le occorrenze nella frase nascosta
         let consFq = {}, vocFq = {};
         for (let c of frase) {
             if (CONS.includes(c)) consFq[c] = (consFq[c] || 0) + 1;
             if (VOCI.includes(c)) vocFq[c] = (vocFq[c] || 0) + 1;
         }
-        // Prende le 4 consonanti più frequenti nella frase, poi riempie con le più comuni
         let cons = Object.keys(consFq).sort((a, b) => consFq[b] - consFq[a]).slice(0, 4);
         for (let c of this.FREQ_CONS) {
             if (cons.length >= 4) break;
             if (!cons.includes(c)) cons.push(c);
         }
-        // Vocale più frequente nella frase, altrimenti A
         let voc = Object.keys(vocFq).sort((a, b) => vocFq[b] - vocFq[a])[0] || 'A';
 
         setTimeout(() => {
@@ -343,7 +405,6 @@ const ruotaCpu = {
         let corretta = (ruota.fraseCorrente?.frase || '').toUpperCase();
         let acc = this.difficolta === 'difficile' ? 0.96 :
                   this.difficolta === 'media'     ? 0.82 : 0.55;
-        // Pensa un po' (ma non più dei secondi rimasti)
         let maxWait = Math.max(500, ((ruota._raddoppioSecondi || 15) - 3) * 1000);
         let thinkTime = Math.min(this._delay(2500), maxWait);
 
@@ -384,6 +445,8 @@ const ruotaCpu = {
         return 'A';
     },
 
+    // Usata per La Velocissima, Il Triplete e Il Bonus (giochi di prenotazione)
+    // dove l'accuratezza è intenzionalmente legata alla difficoltà
     _rispostaFrase(corretta) {
         let acc = this.difficolta === 'difficile' ? 0.97 :
                   this.difficolta === 'media'     ? 0.85 : 0.60;
@@ -393,6 +456,23 @@ const ruotaCpu = {
         if (alphaIdx.length) {
             let ri = alphaIdx[Math.floor(Math.random() * alphaIdx.length)];
             arr[ri] = arr[ri] === 'A' ? 'E' : 'A';
+        }
+        return arr.join('');
+    },
+
+    // Usata per la soluzione nel gioco principale e nel Gong:
+    // il bot costruisce la risposta SOLO dalle lettere rivelate sul tabellone.
+    // Le lettere non ancora scoperte vengono sostituite con lettere improbabili,
+    // quindi il bot non può "indovinare" la frase se troppe lettere sono nascoste.
+    _rispostaFraseGioco() {
+        let frase = (ruota.fraseCorrente?.frase || '').toUpperCase();
+        let scoperte = ruota.fraseLettereScoperte || [];
+        let arr = frase.split('');
+        let SUBS = ['Q','X','Z','K','W','J','Y'];
+        for (let i = 0; i < arr.length; i++) {
+            if (!/[A-Z]/.test(arr[i])) continue;
+            if (scoperte[i]) continue;
+            arr[i] = SUBS[Math.floor(Math.random() * SUBS.length)];
         }
         return arr.join('');
     },
