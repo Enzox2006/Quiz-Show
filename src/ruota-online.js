@@ -9,6 +9,7 @@ const ruotaOnline = {
     _lastWheelBroadcast: 0,
     _sessionActive: false,
     _tryingReconnect: false,
+    _mancheDaSaltareOnline: [],
 
     _connetti() {
         if (this.socket && this.socket.connected) return this.socket;
@@ -68,10 +69,11 @@ const ruotaOnline = {
             self._aggiornaListaLobby(giocatori);
         });
 
-        s.on('partita_iniziata', ({ nomi }) => {
+        s.on('partita_iniziata', ({ nomi, mancheDaSaltare }) => {
             self.nomiGiocatori = nomi;
             ruota.reset();
             ruota.nomi = [...nomi];
+            ruota._mancheDaSaltare = mancheDaSaltare || [];
             grafica.puliscifield();
             if (!self._patchedRuota) {
                 self._patchRuotaPerOnline();
@@ -221,7 +223,7 @@ const ruotaOnline = {
         const orig_iniziaManche = ruota._iniziaManche.bind(ruota);
         ruota._iniziaManche = function () {
             orig_iniziaManche();
-            if (self.mioIdx !== 0) {
+            if (self.codiceStanza && self.mioIdx !== 0) {
                 const btns = Array.from(field.querySelectorAll('button'));
                 const btn = btns.find(b => b.innerHTML.includes('INIZIA'));
                 if (btn) {
@@ -1414,13 +1416,50 @@ const ruotaOnline = {
         attesaEl.style.cssText = `font-family:'Barlow',sans-serif;font-size:22px;color:rgba(255,255,255,0.35);`;
         attesaEl.innerHTML = giocatori.length < 3 ? `In attesa di ${3 - giocatori.length} giocatore/i...` : '';
 
+        // ── Selezione manche (solo host) ──
+        let mancheHostWrap = document.createElement("div");
+        mancheHostWrap.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:10px;`;
+        if (isHost) {
+            ruotaOnline._mancheDaSaltareOnline = [];
+            const _mancheNomi = ['LA VELOCISSIMA','MANCHE 1','SE LA SAI RADDOPPI','IL JACKPOT','IL TRENO EXPRESS','IL TRIPLETE','LA SFIDA A TEMPO'];
+            const _mancheAttive = [true,true,true,true,true,true,true];
+            let mLabel = document.createElement("div");
+            mLabel.innerHTML = "SELEZIONA LE MANCHE";
+            mLabel.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:5px;color:rgba(255,255,255,0.28);`;
+            let mPills = document.createElement("div");
+            mPills.style.cssText = `display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:900px;`;
+            _mancheNomi.forEach((nome, idx) => {
+                let pill = document.createElement("button");
+                pill.innerHTML = nome;
+                pill.style.cssText = `padding:8px 18px;border-radius:40px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;cursor:pointer;border:2px solid rgba(240,200,0,0.55);background:rgba(240,200,0,0.13);color:#f0c800;transition:all 0.15s;`;
+                pill.addEventListener('click', () => {
+                    let nAttive = _mancheAttive.filter(x=>x).length;
+                    if (_mancheAttive[idx] && nAttive <= 1) return;
+                    _mancheAttive[idx] = !_mancheAttive[idx];
+                    if (_mancheAttive[idx]) {
+                        pill.style.background='rgba(240,200,0,0.13)'; pill.style.color='#f0c800';
+                        pill.style.borderColor='rgba(240,200,0,0.55)'; pill.style.opacity='1';
+                    } else {
+                        pill.style.background='rgba(255,255,255,0.04)'; pill.style.color='rgba(255,255,255,0.22)';
+                        pill.style.borderColor='rgba(255,255,255,0.1)'; pill.style.opacity='0.55';
+                    }
+                    ruotaOnline._mancheDaSaltareOnline = _mancheAttive.map((a,i)=>a?-1:i).filter(i=>i>=0);
+                });
+                mPills.appendChild(pill);
+            });
+            mancheHostWrap.appendChild(mLabel);
+            mancheHostWrap.appendChild(mPills);
+        }
+
         let btnIniziaWrap = document.createElement("div"); btnIniziaWrap.id = "lobby-inizia-wrap";
         if (isHost) {
             let btnInzia = document.createElement("button"); btnInzia.id = "lobby-inizia-btn";
             btnInzia.innerHTML = "INIZIA PARTITA ▶";
             let pronto = giocatori.length >= 3;
             btnInzia.style.cssText = `background:${pronto ? '#f0c800' : 'rgba(255,255,255,0.1)'};color:${pronto ? '#1a0a3c' : 'rgba(255,255,255,0.25)'};border:none;border-radius:16px;padding:26px 110px;font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:800;letter-spacing:4px;cursor:${pronto ? 'pointer' : 'default'};pointer-events:${pronto ? 'auto' : 'none'};`;
-            btnInzia.addEventListener('click', () => { ruotaOnline.socket.emit('inizia_partita'); });
+            btnInzia.addEventListener('click', () => {
+                ruotaOnline.socket.emit('inizia_partita', { mancheDaSaltare: ruotaOnline._mancheDaSaltareOnline || [] });
+            });
             btnIniziaWrap.appendChild(btnInzia);
         } else {
             let waitMsg = document.createElement("div");
@@ -1430,7 +1469,7 @@ const ruotaOnline = {
         }
 
         wrap.appendChild(title); wrap.appendChild(codiceBox); wrap.appendChild(sub);
-        wrap.appendChild(listaWrap); wrap.appendChild(attesaEl); wrap.appendChild(btnIniziaWrap);
+        wrap.appendChild(listaWrap); wrap.appendChild(attesaEl); wrap.appendChild(mancheHostWrap); wrap.appendChild(btnIniziaWrap);
         field.appendChild(wrap);
         main.current = "RuotaLobby";
     },
