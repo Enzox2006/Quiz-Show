@@ -757,6 +757,13 @@ const ruotaOnline = {
     _clearSession() {
         localStorage.removeItem('ruota_session');
         this._sessionActive = false;
+        this.mioIdx = -1;
+        this.codiceStanza = null;
+        // Disconnetti il socket: il server riceve la disconnessione,
+        // marca il giocatore come disconnesso ed emette giocatore_disconnesso agli altri.
+        if (this.socket && this.socket.connected) {
+            this.socket.disconnect();
+        }
         // Rimuovi overlay di pausa se presente
         let ov = document.getElementById('ro-pausa-overlay');
         if (ov) ov.remove();
