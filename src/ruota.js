@@ -131,6 +131,7 @@ const ruota = {
         this._pendingTimeouts = [];
         // Flag: il gioco è terminato (solo dopo il finale manche 6)
         this._giocoTerminato = false;
+        if (typeof ruotaCpu !== 'undefined') ruotaCpu.reset();
         // jackpot_pool NON viene resettato — carry-over tra partite
         // Ripristina spicchi originali
         this.SPICCHI = [
@@ -233,6 +234,11 @@ const ruota = {
 
     // ── Jolly prompt ───────────────────────────────────────────────
     _chiedeJolly(msgEvento, colorEvento, onUsa, onNonUsa) {
+        if (typeof ruotaCpu !== 'undefined' && ruotaCpu._è(this.turno)) {
+            let usa = this.jolly[this.turno] && msgEvento.includes('BANCAROTTA');
+            setTimeout(() => { usa ? onUsa() : onNonUsa(); }, 700);
+            return;
+        }
         if (!this.jolly[this.turno]) { onNonUsa(); return; }
         let overlay = document.createElement("div");
         overlay.style.cssText = `
@@ -700,6 +706,7 @@ const ruota = {
         inputsRow.style.cssText=`display:flex;gap:36px;width:100%;`;
         let labels=['GIOCATORE 1','GIOCATORE 2','GIOCATORE 3'];
         let inputs=[];
+        let cpuToggles=[false,false,false];
         for (let i=0;i<3;i++) {
             let col=document.createElement("div");
             col.style.cssText=`flex:1;display:flex;flex-direction:column;gap:12px;`;
@@ -719,7 +726,21 @@ const ruota = {
                 let v=inp.value.trim().toUpperCase();
                 ruota.nomi[ii] = v || labels[ii];
             });
-            inputs.push(inp); col.appendChild(lbl); col.appendChild(inp); inputsRow.appendChild(col);
+            // Toggle BOT
+            let iBot=i; let botBtn=document.createElement("button");
+            botBtn.innerHTML='🤖 &nbsp;BOT';
+            botBtn.style.cssText=`padding:9px 18px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:3px;cursor:pointer;border:2px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.25);transition:all 0.15s;align-self:flex-start;`;
+            botBtn.addEventListener('click',()=>{
+                cpuToggles[iBot]=!cpuToggles[iBot];
+                if (cpuToggles[iBot]) {
+                    botBtn.style.background='rgba(240,200,0,0.15)'; botBtn.style.borderColor='rgba(240,200,0,0.6)'; botBtn.style.color='#f0c800';
+                    inp.disabled=true; inp.style.opacity='0.35';
+                } else {
+                    botBtn.style.background='rgba(255,255,255,0.04)'; botBtn.style.borderColor='rgba(255,255,255,0.10)'; botBtn.style.color='rgba(255,255,255,0.25)';
+                    inp.disabled=false; inp.style.opacity='1';
+                }
+            });
+            inputs.push(inp); col.appendChild(lbl); col.appendChild(inp); col.appendChild(botBtn); inputsRow.appendChild(col);
         }
         // ── Sezione selezione manche ──
         let mancheNomi=['LA VELOCISSIMA','MANCHE 1','SE LA SAI RADDOPPI','IL JACKPOT','IL TRENO EXPRESS','IL TRIPLETE','LA SFIDA A TEMPO'];
@@ -757,8 +778,11 @@ const ruota = {
         btn.style.cssText=`background:#f0c800;color:#1a0a3c;border:none;border-radius:18px;padding:26px 110px;font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:800;letter-spacing:4px;cursor:pointer;box-shadow:0 8px 50px rgba(240,200,0,0.4);`;
         btn.classList.add('btn-primary');
         btn.addEventListener('click',()=>{
-            for (let i=0;i<3;i++) ruota.nomi[i]=inputs[i].value.trim().toUpperCase()||labels[i];
+            for (let i=0;i<3;i++) ruota.nomi[i]=cpuToggles[i]?'🤖 BOT':(inputs[i].value.trim().toUpperCase()||labels[i]);
             ruota._mancheDaSaltare=mancheAttive.map((a,i)=>a?-1:i).filter(i=>i>=0);
+            let cpuSlots=cpuToggles.map((v,i)=>v?i:-1).filter(i=>i>=0);
+            if (cpuSlots.length>0) ruotaCpu.attiva(cpuSlots,'media');
+            else ruotaCpu.reset();
             ruota._avviaPartita();
         });
         wrap.appendChild(title); wrap.appendChild(sub); wrap.appendChild(inputsRow); wrap.appendChild(mancheSection); wrap.appendChild(btn);
@@ -918,6 +942,10 @@ const ruota = {
 
     _velocissimaPrenota(playerIdx) {
         if (this._termometroEliminate.includes(playerIdx)) return;
+        if (typeof ruotaCpu !== 'undefined' && ruotaCpu._è(playerIdx)) {
+            ruotaCpu._handleVelocissima(playerIdx);
+            return;
+        }
         clearInterval(this._termometroTimer); this._termometroTimer = null;
         ruota._buildVKSoluzione({
             titolo: `${this._nomeG(playerIdx)} &mdash; DAI LA SOLUZIONE`,
