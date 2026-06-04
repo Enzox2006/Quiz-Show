@@ -75,6 +75,7 @@ const ruota = {
     _jollyIdx: -1,
     _ultimoVincitore: -1,
     _gongPensaTimer: null,
+    _gongSolWindow: false,
     _raddoppioConsSel: [],
     _raddoppioVocaleSel: null,
     _raddoppioTimer: null,
@@ -118,6 +119,7 @@ const ruota = {
         this._jollyIdx = -1;
         this._ultimoVincitore = -1;
         clearInterval(this._gongPensaTimer); this._gongPensaTimer = null;
+        this._gongSolWindow = false;
         this._raddoppioConsSel = [];
         this._raddoppioVocaleSel = null;
         clearInterval(this._raddoppioTimer); this._raddoppioTimer = null;
@@ -2177,11 +2179,13 @@ const ruota = {
         let prenotaRow=document.createElement("div");
         prenotaRow.style.cssText=`display:flex;gap:20px;width:100%;`;
         let prenotaBtns=[];
+        let tuttiBot = typeof ruotaCpu !== 'undefined' && [0,1,2].every(j => ruotaCpu._è(j));
         for (let i=0;i<3;i++) {
             let pb=document.createElement("button");
             pb.innerHTML=`PRENOTA &nbsp;<strong>${this._nomeG(i)}</strong>`;
             pb.style.cssText=`flex:1;padding:20px;border-radius:14px;background:rgba(255,255,255,0.07);color:${this.COLORS[i]};border:2px solid ${this.COLORS[i]}66;font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;letter-spacing:2px;cursor:pointer;`;
-            if (ruota._triletteEliminate.includes(i)) {
+            let isBot = typeof ruotaCpu !== 'undefined' && ruotaCpu._è(i);
+            if (ruota._triletteEliminate.includes(i) || isBot) {
                 pb.style.opacity='0.25'; pb.style.pointerEvents='none';
             }
             let idx=i;
@@ -2194,7 +2198,8 @@ const ruota = {
                     ruota._triletteEliminate.push(idx);
                     ruota._trilettePrenotatoDa=-1;
                     prenotaBtns.forEach((b,j)=>{
-                        if (!ruota._triletteEliminate.includes(j)) {
+                        let jIsBot = typeof ruotaCpu !== 'undefined' && ruotaCpu._è(j);
+                        if (!ruota._triletteEliminate.includes(j) && !jIsBot) {
                             b.style.opacity='1'; b.style.pointerEvents='auto';
                         } else {
                             b.style.opacity='0.25'; b.style.pointerEvents='none';
@@ -2214,16 +2219,19 @@ const ruota = {
             });
             prenotaBtns.push(pb); prenotaRow.appendChild(pb);
         }
-        let skipBtn=document.createElement("button");
-        skipBtn.innerHTML="→ SALTA tabellone";
-        skipBtn.style.cssText=`background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.35);border:2px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 40px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;cursor:pointer;`;
-        skipBtn.addEventListener('click',()=>{
-            if(ruota._triletteTimer){clearInterval(ruota._triletteTimer);ruota._triletteTimer=null;}
-            ruota.sottomanche++;ruota._prossimaTriplete();
-        });
         wrap.appendChild(tag); wrap.appendChild(tabEl);
         wrap.appendChild(this._buildCatBanner(this.fraseCorrente.categoria));
-        wrap.appendChild(scRow); wrap.appendChild(prenotaRow); wrap.appendChild(skipBtn);
+        wrap.appendChild(scRow); wrap.appendChild(prenotaRow);
+        if (!tuttiBot) {
+            let skipBtn=document.createElement("button");
+            skipBtn.innerHTML="→ SALTA tabellone";
+            skipBtn.style.cssText=`background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.35);border:2px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 40px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;cursor:pointer;`;
+            skipBtn.addEventListener('click',()=>{
+                if(ruota._triletteTimer){clearInterval(ruota._triletteTimer);ruota._triletteTimer=null;}
+                ruota.sottomanche++;ruota._prossimaTriplete();
+            });
+            wrap.appendChild(skipBtn);
+        }
         field.appendChild(wrap);
         main.current="RuotaTriplete";
         this._triletteTimer=setInterval(()=>{
@@ -2480,6 +2488,7 @@ const ruota = {
     _dopoLetteraGong() {
         clearInterval(this._gongTimer);
         clearInterval(this._gongPensaTimer);
+        this._gongSolWindow = true;
         grafica.puliscifield();
         grafica._statusBar("← TORNA AL MENU","RUOTA DELLA FORTUNA · LA SFIDA A TEMPO",()=>{
             clearInterval(ruota._gongPensaTimer);
@@ -2510,6 +2519,7 @@ const ruota = {
         cdWrap.appendChild(cdLabel); cdWrap.appendChild(cdEl);
         let btnSol=this._mkBtn("💡  DAI LA SOLUZIONE","rgba(34,204,102,0.1)","#22cc66",()=>{
             clearInterval(ruota._gongPensaTimer);
+            ruota._gongSolWindow = false;
             ruota._apriSoluzione(null, ()=>ruota._prossimoTurnoGong());
         },false);
         rightPanel.appendChild(turnoNome); rightPanel.appendChild(cdWrap); rightPanel.appendChild(btnSol);
@@ -2524,6 +2534,7 @@ const ruota = {
             if (sec<=2) cdEl.style.color='#ff4444';
             if (sec<=0) {
                 clearInterval(ruota._gongPensaTimer);
+                ruota._gongSolWindow = false;
                 ruota._playTimeUp();
                 ruota._showToast("Tempo scaduto — turno passato!","#888888", 1000);
                 setTimeout(()=>ruota._prossimoTurnoGong(),1200);
@@ -2534,6 +2545,7 @@ const ruota = {
     _prossimoTurnoGong() {
         clearInterval(this._gongTimer);
         clearInterval(this._gongPensaTimer);
+        this._gongSolWindow = false;
         this.turno=(this.turno+1)%3;
         this._renderFinale(); main.current="RuotaFinale";
     },
