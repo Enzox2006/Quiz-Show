@@ -203,6 +203,18 @@ const ruotaCpu = {
             if ((ruota.fraseLettereScoperte || [])[i] || !/[A-Z]/i.test(frase[i])) scoperte++;
         }
         let pct = frase.length > 0 ? scoperte / frase.length : 0;
+
+        // Manche 6 pre-gong: il bot preme il GONG non appena ha abbastanza lettere visibili
+        if (ruota.manche === 6 && !ruota.faseGong) {
+            if (pct >= 0.25) {
+                setTimeout(() => {
+                    if (main.current !== 'RuotaGioco' || ruota.faseGong) { this._cpuActing = false; return; }
+                    ruota._giraRuotaFinale();
+                    this._cpuActing = false;
+                }, this._delay(800));
+                return;
+            }
+        }
         // Soglie più conservative: il bot non tenta prima che siano visibili abbastanza lettere
         let sogliaSol = this.difficolta === 'difficile' ? 0.72 :
                         this.difficolta === 'media'     ? 0.80 : 0.90;
