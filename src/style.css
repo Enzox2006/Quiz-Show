@@ -188,17 +188,17 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .ruota-tastiera-riga {
     display: flex;
-    gap: 14px;
+    gap: 8px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .ruota-lettera-btn {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 800;
-    width: 64px;
-    height: 64px;
+    width: 52px;
+    height: 52px;
     background: rgba(255, 255, 255, 0.10);
     color: white;
     border: 2px solid rgba(255, 255, 255, 0.25);
