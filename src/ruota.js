@@ -850,9 +850,16 @@ const ruota = {
         field.appendChild(wrap);
         main.current="RuotaTermometro";
 
-        this._termometroTimer=setInterval(()=>{
+        let _velTimerId;
+        _velTimerId = this._termometroTimer = setInterval(()=>{
+            if (main.current !== "RuotaTermometro") {
+                clearInterval(_velTimerId);
+                if (ruota._termometroTimer === _velTimerId) ruota._termometroTimer = null;
+                return;
+            }
             if (ruota._velIdx >= ruota._velPosizioniLettere.length) {
-                clearInterval(ruota._termometroTimer); ruota._termometroTimer=null;
+                clearInterval(_velTimerId);
+                if (ruota._termometroTimer === _velTimerId) ruota._termometroTimer = null;
                 ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
                 let _m=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_m),2500);
                 return;
@@ -862,7 +869,8 @@ const ruota = {
             let tab=document.getElementById("ruota-tabellone");
             if (tab) tab.replaceWith(ruota._buildTabellone());
             if (ruota._tutteScoperte()) {
-                clearInterval(ruota._termometroTimer); ruota._termometroTimer=null;
+                clearInterval(_velTimerId);
+                if (ruota._termometroTimer === _velTimerId) ruota._termometroTimer = null;
                 ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
                 let _m=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_m),2500);
             }
@@ -871,7 +879,7 @@ const ruota = {
 
     _velocissimaPrenota(playerIdx) {
         if (this._termometroEliminate.includes(playerIdx)) return;
-        clearInterval(this._termometroTimer);
+        clearInterval(this._termometroTimer); this._termometroTimer = null;
         ruota._buildVKSoluzione({
             titolo: `${this._nomeG(playerIdx)} &mdash; DAI LA SOLUZIONE`,
             colore: this.COLORS[playerIdx],
@@ -904,9 +912,16 @@ const ruota = {
     },
 
     _velocissima_resumeTimer() {
-        this._termometroTimer=setInterval(()=>{
+        let _resumeTimerId;
+        _resumeTimerId = this._termometroTimer = setInterval(()=>{
+            if (main.current !== "RuotaTermometro") {
+                clearInterval(_resumeTimerId);
+                if (ruota._termometroTimer === _resumeTimerId) ruota._termometroTimer = null;
+                return;
+            }
             if (ruota._velIdx >= ruota._velPosizioniLettere.length) {
-                clearInterval(ruota._termometroTimer); ruota._termometroTimer=null;
+                clearInterval(_resumeTimerId);
+                if (ruota._termometroTimer === _resumeTimerId) ruota._termometroTimer = null;
                 ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
                 let _mr=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_mr),2500);
                 return;
@@ -916,7 +931,8 @@ const ruota = {
             let tab=document.getElementById("ruota-tabellone");
             if (tab) tab.replaceWith(ruota._buildTabellone());
             if (ruota._tutteScoperte()) {
-                clearInterval(ruota._termometroTimer); ruota._termometroTimer=null;
+                clearInterval(_resumeTimerId);
+                if (ruota._termometroTimer === _resumeTimerId) ruota._termometroTimer = null;
                 ruota._showToast("Nessuno si è prenotato! Prossima manche.","#888");
                 let _mr=ruota.manche; ruota._queueTimeout(()=>ruota._avanzaManche(_mr),2500);
             }
