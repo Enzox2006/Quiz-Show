@@ -1,4 +1,4 @@
-const CACHE_NAME = "avanti-altro-v46";
+const CACHE_NAME = "avanti-altro-v47";
 const ASSETS = [
     "./",
     "index.html",
@@ -15,6 +15,7 @@ const ASSETS = [
     "src/cruciverba.js",
     "src/intesa.js",
     "src/ruota.js",
+    "src/ruota-cpu.js",
     "src/ruota-online.js",
     "src/key.js",
     "img/quizshow.png",
