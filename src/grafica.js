@@ -8,6 +8,35 @@ const grafica = {
         }
     },
 
+    // ── Dialogo di conferma "Vuoi tornare al menù?" ──────────────────
+    confermaTornaAlMenu(onSi) {
+        let old = document.getElementById('conferma-menu-dialog');
+        if (old) old.remove();
+        let ov = document.createElement('div');
+        ov.id = 'conferma-menu-dialog';
+        ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(0,0,0,0.78);display:flex;align-items:center;justify-content:center;';
+        let box = document.createElement('div');
+        box.style.cssText = "background:#0d0628;border:2px solid rgba(255,255,255,0.14);border-radius:22px;padding:60px 80px;display:flex;flex-direction:column;align-items:center;gap:36px;max-width:800px;width:90%;";
+        let msg = document.createElement('div');
+        msg.innerHTML = 'Vuoi tornare al menù?';
+        msg.style.cssText = "font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;letter-spacing:4px;color:white;text-align:center;";
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:24px;flex-wrap:wrap;justify-content:center;';
+        let btnNo = document.createElement('button');
+        btnNo.innerHTML = 'NO, CONTINUA';
+        btnNo.style.cssText = "background:#f0c800;color:#1a0a3c;border:none;border-radius:14px;padding:20px 60px;font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;letter-spacing:3px;cursor:pointer;";
+        btnNo.addEventListener('click', () => ov.remove());
+        let btnSi = document.createElement('button');
+        btnSi.innerHTML = 'SÌ, ESCI';
+        btnSi.style.cssText = "background:rgba(255,80,80,0.12);color:#ff6060;border:2px solid rgba(255,80,80,0.35);border-radius:14px;padding:20px 60px;font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;letter-spacing:3px;cursor:pointer;";
+        btnSi.addEventListener('click', () => { ov.remove(); onSi(); });
+        btnRow.appendChild(btnNo); btnRow.appendChild(btnSi);
+        box.appendChild(msg); box.appendChild(btnRow);
+        ov.appendChild(box);
+        ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+        document.body.appendChild(ov);
+    },
+
     _statusBar(leftText, rightText, onLeftClick) {
         let bar = document.createElement("div");
         bar.style.cssText = `
@@ -39,7 +68,16 @@ const grafica = {
             leftSpan.addEventListener("mouseleave", () => {
                 leftSpan.style.color = "rgba(255,255,255,0.4)";
             });
-            leftSpan.addEventListener("click", onLeftClick);
+            // Aggiunge dialogo di conferma per qualsiasi callback non-noop
+            leftSpan.addEventListener("click", () => {
+                const str = onLeftClick.toString().replace(/\s+/g, '');
+                const isNoop = str === '()=>{}' || str === 'function(){}';
+                if (!isNoop) {
+                    grafica.confermaTornaAlMenu(onLeftClick);
+                } else {
+                    onLeftClick();
+                }
+            });
         }
         bar.appendChild(leftSpan);
         bar.appendChild(makeSpan(rightText));
@@ -818,10 +856,12 @@ const grafica = {
         `;
         backBtn.classList.add("btn-primary");
         backBtn.addEventListener("click", () => {
-            tool.resetGameState();
-            grafica.puliscifield();
-            grafica.home();
-            main.current = "Home";
+            grafica.confermaTornaAlMenu(() => {
+                tool.resetGameState();
+                grafica.puliscifield();
+                grafica.home();
+                main.current = "Home";
+            });
         });
 
         overlay.appendChild(backBtn);
