@@ -2405,7 +2405,7 @@ const ruota = {
                         return;
                     }
                     ruota._playWin();
-                    let valoreFinale = sp.tipo==='euro' ? sp.valore+1000 : 0;
+                    let valoreFinale = sp.tipo==='euro' ? (sp.valore===5000 ? 5000 : sp.valore+1000) : 0;
                     risultatoEl.innerHTML=`${sp.label} → Valore finale: ${ruota._fmtEuro(valoreFinale)}`;
                     ruota.faseGong=true;
                     ruota.valoreRuota=valoreFinale;
