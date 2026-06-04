@@ -1505,6 +1505,53 @@ const ruota = {
         document.addEventListener('pointercancel',cleanup);
     },
 
+    _giraRuotaBot(onResult) {
+        main.current = "RuotaSpin";
+        grafica.puliscifield();
+        grafica._statusBar("← TORNA AL MENU","RUOTA DELLA FORTUNA",()=>{});
+        const FW = fieldWidth, FH = fieldHeight, avFH = FH - 64;
+        const visibleWheelH = Math.min(FW / 2, avFH - 110);
+        const bottomH = avFH - visibleWheelH;
+        let wrap = document.createElement("div");
+        wrap.style.cssText = `position:absolute;top:64px;left:0;right:0;height:${avFH}px;overflow:hidden;`;
+        let wheelWrap = document.createElement("div");
+        wheelWrap.style.cssText = `position:absolute;top:0;left:0;width:${FW}px;height:${visibleWheelH}px;overflow:hidden;`;
+        let canvas = document.createElement("canvas");
+        canvas.width = FW; canvas.height = FW;
+        canvas.style.cssText = `position:absolute;top:0;left:0;width:${FW}px;height:${FW}px;`;
+        wheelWrap.appendChild(canvas);
+        let bottomPanel = document.createElement("div");
+        bottomPanel.style.cssText = `position:absolute;top:${visibleWheelH}px;left:0;right:0;height:${bottomH}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;`;
+        let risultatoEl = document.createElement("div");
+        risultatoEl.style.cssText = `font-family:'Barlow Condensed',sans-serif;font-size:80px;font-weight:800;color:#f0c800;letter-spacing:4px;text-align:center;line-height:1;`;
+        bottomPanel.appendChild(risultatoEl);
+        wrap.appendChild(wheelWrap); wrap.appendChild(bottomPanel); field.appendChild(wrap);
+        let n = this.SPICCHI.length, sliceAngle = (Math.PI * 2) / n;
+        let startRot = this._lastRotation || 0;
+        let extraSpins = (5 + Math.floor(Math.random() * 4)) * Math.PI * 2;
+        let duration = 2400 + Math.random() * 800;
+        let startTime = performance.now();
+        ruota._disegnaRuota(canvas, startRot);
+        const anim = (now) => {
+            if (main.current !== 'RuotaSpin') return;
+            let t = Math.min((now - startTime) / duration, 1);
+            let ease = 1 - Math.pow(1 - t, 3);
+            let rot = startRot + extraSpins * ease;
+            ruota._disegnaRuota(canvas, rot);
+            if (t < 1) { requestAnimationFrame(anim); }
+            else {
+                ruota._lastRotation = rot;
+                let normalized = ((-rot) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                let spiccioVincente = Math.floor(normalized / sliceAngle) % n;
+                let sp = ruota.SPICCHI[spiccioVincente];
+                risultatoEl.innerHTML = sp.label;
+                ruota._playWin();
+                setTimeout(() => onResult(sp, spiccioVincente), 1300);
+            }
+        };
+        requestAnimationFrame(anim);
+    },
+
     _animaRuota(canvas, risultatoEl, continuaBtn, onDone, duration) {
         let n=this.SPICCHI.length, sliceAngle=(Math.PI*2)/n;
         let idxTarget=Math.floor(Math.random()*n);
