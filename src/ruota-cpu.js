@@ -30,6 +30,19 @@ const ruotaCpu = {
         return Math.round((base || 1200) * factor + Math.random() * 300);
     },
 
+    // Aspetta che main.current esca dallo stato `fromState` prima di liberare il lock.
+    // Evita che il poll riparta mentre la transizione è ancora in un setTimeout interno.
+    _releaseWhenStateChanges(fromState, timeout) {
+        let w = 0;
+        let chk = setInterval(() => {
+            w += 100;
+            if (main.current !== fromState || w > (timeout || 4000)) {
+                clearInterval(chk);
+                this._cpuActing = false;
+            }
+        }, 100);
+    },
+
     _postAction() {
         if (typeof ruotaOnline !== 'undefined' && ruotaOnline.codiceStanza && ruotaOnline.mioIdx === 0) {
             setTimeout(() => ruotaOnline._broadcastGameState('gioco'), 350);
@@ -68,6 +81,7 @@ const ruotaCpu = {
             setTimeout(() => {
                 if (main.current !== 'RuotaTermometro') { this._cpuActing = false; return; }
                 ruota._velocissimaPrenota(idx);
+                this._releaseWhenStateChanges('RuotaTermometro');
             }, this._delay(400));
             break;
         }
@@ -81,7 +95,6 @@ const ruotaCpu = {
         setTimeout(() => {
             ruota._showToast(`🤖 ${ruota._nomeG(playerIdx)}: "${risposta}"`, ruota.COLORS[playerIdx], 2200);
             setTimeout(() => {
-                this._cpuActing = false;
                 if (risposta === corretta) {
                     ruota._playCorrectSolution();
                     ruota.punteggioGioco[playerIdx] += 1000;
@@ -105,6 +118,7 @@ const ruotaCpu = {
                         }
                     }, 1400);
                 }
+                this._cpuActing = false;
             }, this._delay(1500));
         }, 900);
     },
@@ -145,22 +159,13 @@ const ruotaCpu = {
         if (!this._è(ruota.turno) || main.current !== 'RuotaGioco') {
             this._cpuActing = false; return;
         }
-        // Mostra la ruota che gira (animazione visibile) poi elabora il risultato
         ruota._giraRuotaBot((sp, idx) => {
             if (!this._è(ruota.turno)) { this._cpuActing = false; return; }
             ruota._dopoRuota(sp, idx);
             this._postAction();
-            // Mantieni _cpuActing = true finché la schermata di scelta lettera
-            // non è aperta, per evitare che il poll giri di nuovo la ruota
-            let waited = 0;
-            let chk = setInterval(() => {
-                waited += 100;
-                let s = main.current;
-                if ((s !== 'RuotaGioco' && s !== 'RuotaSpin') || waited > 5000) {
-                    clearInterval(chk);
-                    this._cpuActing = false;
-                }
-            }, 100);
+            // Tieni _cpuActing=true finché la schermata consonante si apre;
+            // evita che il poll giri di nuovo la ruota nel frattempo.
+            this._releaseWhenStateChanges('RuotaSpin', 6000);
         });
     },
 
@@ -178,7 +183,9 @@ const ruotaCpu = {
                 if (main.current !== 'RuotaLettera') { this._cpuActing = false; return; }
                 ruota._confermaCons(l, isRaddoppia);
                 this._postAction();
-                this._cpuActing = false;
+                // NON rilasciare subito: _confermaCons cambia stato via setTimeout interno.
+                // Aspettiamo che main.current esca da RuotaLettera.
+                this._releaseWhenStateChanges('RuotaLettera');
             }, 700);
         }, this._delay(700));
     },
@@ -196,7 +203,7 @@ const ruotaCpu = {
                 if (main.current !== 'RuotaVocale') { this._cpuActing = false; return; }
                 ruota._confermaVocale(v);
                 this._postAction();
-                this._cpuActing = false;
+                this._releaseWhenStateChanges('RuotaVocale');
             }, 700);
         }, this._delay(700));
     },
@@ -206,7 +213,7 @@ const ruotaCpu = {
         setTimeout(() => {
             if (!this._è(ruota.turno)) { this._cpuActing = false; return; }
             ruota._apriCompraVocale();
-            this._cpuActing = false;
+            this._releaseWhenStateChanges('RuotaGioco');
         }, 800);
     },
 
@@ -214,6 +221,7 @@ const ruotaCpu = {
     _azioneSoluzione() {
         let corretta = ruota.fraseCorrente?.frase.toUpperCase() || '';
         let risposta = this._rispostaFrase(corretta);
+        let statoCorrente = main.current;
         ruota._showToast(`🤖 ${ruota._nomeTurno()} prova: "${risposta}"`, ruota.COLORS[ruota.turno], 2500);
         setTimeout(() => {
             if (!this._è(ruota.turno)) { this._cpuActing = false; return; }
@@ -232,7 +240,7 @@ const ruotaCpu = {
                 }
             }
             this._postAction();
-            this._cpuActing = false;
+            this._releaseWhenStateChanges(statoCorrente);
         }, this._delay(2200));
     },
 
@@ -257,11 +265,11 @@ const ruotaCpu = {
             } else if (!(ruota._tutteConsonantiRivelate ? ruota._tutteConsonantiRivelate() : false)) {
                 clearInterval(ruota._gongTimer);
                 ruota._apriChiamataConsonanteGong();
-                this._cpuActing = false;
+                this._releaseWhenStateChanges('RuotaFinale');
             } else if (!(ruota._tutteVocaliRivelate ? ruota._tutteVocaliRivelate() : true)) {
                 clearInterval(ruota._gongTimer);
                 ruota._apriCompraVocale();
-                this._cpuActing = false;
+                this._releaseWhenStateChanges('RuotaFinale');
             } else {
                 this._azioneSoluzione();
             }
