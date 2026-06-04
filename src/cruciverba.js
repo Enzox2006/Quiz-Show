@@ -769,10 +769,12 @@ const crux = {
         `;
         backBtn.classList.add('btn-primary');
         backBtn.addEventListener('click', () => {
-            crux.reset();
-            grafica.puliscifield();
-            grafica.home();
-            main.current = "Home";
+            grafica.confermaTornaAlMenu(() => {
+                crux.reset();
+                grafica.puliscifield();
+                grafica.home();
+                main.current = "Home";
+            });
         });
 
         overlay.appendChild(icon);
