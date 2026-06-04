@@ -440,12 +440,29 @@ const ruotaOnline = {
         const orig_chiedeJolly = ruota._chiedeJolly.bind(ruota);
         ruota._chiedeJolly = function (msgEvento, colorEvento, onUsa, onNonUsa) {
             if (ruota.turno !== self.mioIdx) {
-                // Non sono il giocatore attivo: salta il dialog, esegui onNonUsa
-                // (che ora è sicura grazie al patch di _passaTurno)
                 onNonUsa();
                 return;
             }
             orig_chiedeJolly(msgEvento, colorEvento, onUsa, onNonUsa);
+        };
+
+        // ─ 13. Intercetta _statusBar: "TORNA AL MENU" avvisa il server ───
+        // Qualsiasi pulsante "← TORNA AL MENU" con callback reale deve prima
+        // chiamare _clearSession() per inviare lascia_stanza e mettere in pausa.
+        const origStatusBar = grafica._statusBar.bind(grafica);
+        grafica._statusBar = function (leftText, rightText, onLeftClick) {
+            if (onLeftClick && leftText && leftText.includes('TORNA AL MENU')) {
+                const str = onLeftClick.toString().replace(/\s+/g, '');
+                const isNoop = str === '()=>{}' || str === 'function(){}';
+                if (!isNoop) {
+                    const orig = onLeftClick;
+                    onLeftClick = function () {
+                        ruotaOnline._clearSession();
+                        orig.call(this);
+                    };
+                }
+            }
+            origStatusBar(leftText, rightText, onLeftClick);
         };
     },
 
@@ -491,6 +508,7 @@ const ruotaOnline = {
         const self = this;
         clearInterval(ruota._termometroTimer);
         ruota._termometroTimer = setInterval(() => {
+            if (document.getElementById('ro-pausa-overlay')) return; // gioco in pausa
             if (ruota._velIdx >= ruota._velPosizioniLettere.length) {
                 clearInterval(ruota._termometroTimer);
                 ruota._termometroTimer = null;
