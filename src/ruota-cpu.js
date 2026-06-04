@@ -79,31 +79,34 @@ const ruotaCpu = {
         let risposta = this._rispostaFrase(corretta);
         ruota._showToast(`🤖 ${ruota._nomeG(playerIdx)} si prenota!`, ruota.COLORS[playerIdx], 1200);
         setTimeout(() => {
-            this._cpuActing = false;
-            if (risposta === corretta) {
-                ruota._playCorrectSolution();
-                ruota.punteggioGioco[playerIdx] += 1000;
-                ruota.turnoIniziale = playerIdx; ruota.turno = playerIdx;
-                ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, '#22cc66');
-                let _m = ruota.manche;
-                ruota._queueTimeout(() => { this._postAction(); ruota._avanzaManche(_m); }, 2000);
-            } else {
-                ruota._playWrongSolution();
-                ruota._termometroEliminate.push(playerIdx);
-                ruota._showToast(`${ruota._nomeG(playerIdx)} — Sbagliato!`, '#ff4444');
-                ruota._queueTimeout(() => {
-                    let btn = document.getElementById(`vel-btn-${playerIdx}`);
-                    if (btn) { btn.style.opacity = '0.25'; btn.style.pointerEvents = 'none'; }
-                    if (ruota._termometroEliminate.length >= 3) {
-                        ruota._showToast('Tutti eliminati!', '#888');
-                        let _m2 = ruota.manche;
-                        ruota._queueTimeout(() => ruota._mostraFraseNascosta(() => ruota._avanzaManche(_m2)), 1500);
-                    } else {
-                        ruota._velocissima_resumeTimer();
-                    }
-                }, 1400);
-            }
-        }, this._delay(1000));
+            ruota._showToast(`🤖 ${ruota._nomeG(playerIdx)}: "${risposta}"`, ruota.COLORS[playerIdx], 2200);
+            setTimeout(() => {
+                this._cpuActing = false;
+                if (risposta === corretta) {
+                    ruota._playCorrectSolution();
+                    ruota.punteggioGioco[playerIdx] += 1000;
+                    ruota.turnoIniziale = playerIdx; ruota.turno = playerIdx;
+                    ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, '#22cc66');
+                    let _m = ruota.manche;
+                    ruota._queueTimeout(() => { this._postAction(); ruota._avanzaManche(_m); }, 2000);
+                } else {
+                    ruota._playWrongSolution();
+                    ruota._termometroEliminate.push(playerIdx);
+                    ruota._showToast(`${ruota._nomeG(playerIdx)} — Sbagliato!`, '#ff4444');
+                    ruota._queueTimeout(() => {
+                        let btn = document.getElementById(`vel-btn-${playerIdx}`);
+                        if (btn) { btn.style.opacity = '0.25'; btn.style.pointerEvents = 'none'; }
+                        if (ruota._termometroEliminate.length >= 3) {
+                            ruota._showToast('Tutti eliminati!', '#888');
+                            let _m2 = ruota.manche;
+                            ruota._queueTimeout(() => ruota._mostraFraseNascosta(() => ruota._avanzaManche(_m2)), 1500);
+                        } else {
+                            ruota._velocissima_resumeTimer();
+                        }
+                    }, 1400);
+                }
+            }, this._delay(1500));
+        }, 900);
     },
 
     // ── Turno principale (RuotaGioco) ───────────────────────────────────
@@ -137,17 +140,28 @@ const ruotaCpu = {
         }, this._delay());
     },
 
+    // ── Gira la ruota (con animazione visibile) ─────────────────────────
     _azioneSpin() {
-        ruota._showToast(`🤖 ${ruota._nomeTurno()} gira la ruota…`, 'rgba(255,255,255,0.4)', 1000);
-        setTimeout(() => {
-            if (!this._è(ruota.turno) || main.current !== 'RuotaGioco') { this._cpuActing = false; return; }
-            let n = ruota.SPICCHI.length;
-            let idx = Math.floor(Math.random() * n);
-            let sp = ruota.SPICCHI[idx];
+        if (!this._è(ruota.turno) || main.current !== 'RuotaGioco') {
+            this._cpuActing = false; return;
+        }
+        // Mostra la ruota che gira (animazione visibile) poi elabora il risultato
+        ruota._giraRuotaBot((sp, idx) => {
+            if (!this._è(ruota.turno)) { this._cpuActing = false; return; }
             ruota._dopoRuota(sp, idx);
             this._postAction();
-            this._cpuActing = false;
-        }, 900);
+            // Mantieni _cpuActing = true finché la schermata di scelta lettera
+            // non è aperta, per evitare che il poll giri di nuovo la ruota
+            let waited = 0;
+            let chk = setInterval(() => {
+                waited += 100;
+                let s = main.current;
+                if ((s !== 'RuotaGioco' && s !== 'RuotaSpin') || waited > 5000) {
+                    clearInterval(chk);
+                    this._cpuActing = false;
+                }
+            }, 100);
+        });
     },
 
     // ── Scelta consonante (RuotaLettera) ────────────────────────────────
@@ -161,10 +175,11 @@ const ruotaCpu = {
             let l = this._scegliConsonante();
             ruota._showToast(`🤖 ${ruota._nomeTurno()} sceglie: ${l}`, ruota.COLORS[ruota.turno], 900);
             setTimeout(() => {
+                if (main.current !== 'RuotaLettera') { this._cpuActing = false; return; }
                 ruota._confermaCons(l, isRaddoppia);
                 this._postAction();
                 this._cpuActing = false;
-            }, 500);
+            }, 700);
         }, this._delay(700));
     },
 
@@ -178,10 +193,11 @@ const ruotaCpu = {
             let v = this._scegliVocale();
             ruota._showToast(`🤖 ${ruota._nomeTurno()} sceglie la vocale: ${v}`, ruota.COLORS[ruota.turno], 900);
             setTimeout(() => {
+                if (main.current !== 'RuotaVocale') { this._cpuActing = false; return; }
                 ruota._confermaVocale(v);
                 this._postAction();
                 this._cpuActing = false;
-            }, 500);
+            }, 700);
         }, this._delay(700));
     },
 
@@ -194,12 +210,13 @@ const ruotaCpu = {
         }, 800);
     },
 
+    // ── Soluzione (mostra la risposta prima di confermare) ───────────────
     _azioneSoluzione() {
-        ruota._showToast(`🤖 ${ruota._nomeTurno()} prova la soluzione…`, ruota.COLORS[ruota.turno], 1200);
+        let corretta = ruota.fraseCorrente?.frase.toUpperCase() || '';
+        let risposta = this._rispostaFrase(corretta);
+        ruota._showToast(`🤖 ${ruota._nomeTurno()} prova: "${risposta}"`, ruota.COLORS[ruota.turno], 2500);
         setTimeout(() => {
             if (!this._è(ruota.turno)) { this._cpuActing = false; return; }
-            let corretta = ruota.fraseCorrente?.frase.toUpperCase() || '';
-            let risposta = this._rispostaFrase(corretta);
             clearInterval(ruota._gongTimer);
             if (risposta === corretta) {
                 ruota._playCorrectSolution();
@@ -216,7 +233,7 @@ const ruotaCpu = {
             }
             this._postAction();
             this._cpuActing = false;
-        }, this._delay(1200));
+        }, this._delay(2200));
     },
 
     // ── Finale / Gong (RuotaFinale) ─────────────────────────────────────
