@@ -866,6 +866,7 @@ const ruota = {
             }
             let pos = ruota._velPosizioniLettere[ruota._velIdx++];
             ruota.fraseLettereScoperte[pos] = true;
+            ruota._playRevealLetter();
             let tab=document.getElementById("ruota-tabellone");
             if (tab) tab.replaceWith(ruota._buildTabellone());
             if (ruota._tutteScoperte()) {
@@ -891,11 +892,13 @@ const ruota = {
             onConferma: (risposta) => {
                 let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
                 if (risposta === corretta) {
+                    ruota._playCorrectSolution();
                     ruota.punteggioGioco[playerIdx] += 1000;
                     ruota.turnoIniziale = playerIdx; ruota.turno = playerIdx;
                     ruota._showToast(`${ruota._nomeG(playerIdx)} vince La Velocissima! +1.000 €`, "#22cc66");
                     let _mv1 = ruota.manche; ruota._queueTimeout(() => ruota._avanzaManche(_mv1), 2000);
                 } else {
+                    ruota._playWrongSolution();
                     ruota._termometroEliminate.push(playerIdx);
                     ruota._showToast("Sbagliato!", "#ff4444");
                     ruota._queueTimeout(() => {
@@ -1151,6 +1154,113 @@ const ruota = {
         g.gain.setValueAtTime(0.15, ctx.currentTime);
         g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
         src.start(ctx.currentTime);
+    },
+    _playCorrectLetter() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        [880, 1108].forEach((freq, i) => {
+            let o = ctx.createOscillator(), g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime);
+            let t = ctx.currentTime + i * 0.08;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.2, t + 0.015);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+            o.start(t); o.stop(t + 0.28);
+        });
+    },
+    _playWrongLetter() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        let o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'square';
+        o.frequency.setValueAtTime(140, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(75, ctx.currentTime + 0.32);
+        g.gain.setValueAtTime(0.22, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+        o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.32);
+    },
+    _playCorrectSolution() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        [523, 659, 784, 1046, 1319, 1568].forEach((freq, i) => {
+            let o = ctx.createOscillator(), g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime);
+            let t = ctx.currentTime + i * 0.11;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.26, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.40);
+            o.start(t); o.stop(t + 0.40);
+        });
+    },
+    _playWrongSolution() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        [180, 130].forEach((freq, i) => {
+            let o = ctx.createOscillator(), g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type = 'square';
+            o.frequency.setValueAtTime(freq, ctx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(freq * 0.6, ctx.currentTime + 0.3);
+            let t = ctx.currentTime + i * 0.33;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.26, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+            o.start(t); o.stop(t + 0.3);
+        });
+    },
+    _playTimerTick() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        let o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'triangle'; o.frequency.setValueAtTime(900, ctx.currentTime);
+        g.gain.setValueAtTime(0.18, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+        o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.07);
+    },
+    _playTimeUp() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        [600, 400, 260].forEach((freq, i) => {
+            let o = ctx.createOscillator(), g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(freq * 0.65, ctx.currentTime + 0.55);
+            let t = ctx.currentTime + i * 0.22;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.22, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+            o.start(t); o.stop(t + 0.55);
+        });
+    },
+    _playVerdetto() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        [[523,659,784],[784,1046,1319],[1046,1319,1568],[1319,1568,2093]].forEach(([f1,f2,f3], i) => {
+            [f1,f2,f3].forEach((freq, j) => {
+                let o = ctx.createOscillator(), g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime);
+                let t = ctx.currentTime + i * 0.19 + j * 0.04;
+                g.gain.setValueAtTime(0, t);
+                g.gain.linearRampToValueAtTime(0.2, t + 0.03);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+                o.start(t); o.stop(t + 0.55);
+            });
+        });
+    },
+    _playRevealLetter() {
+        this._resumeAudio();
+        let ctx = this._getAudioCtx(); if (!ctx) return;
+        let o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.setValueAtTime(1100, ctx.currentTime);
+        g.gain.setValueAtTime(0.11, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+        o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.1);
     },
 
     // ── Gira Ruota (swipe gesture + mezza ruota) ──────────────────
@@ -1476,6 +1586,7 @@ const ruota = {
         this.attesaLettera=false;
 
         if (count===0) {
+            this._playWrongLetter();
             if (this._expressTurn) {
                 // EXPRESS: errore → azzera punteggio e passa il turno, nessun jolly
                 let prev=this.punteggioRound[this.turno];
@@ -1490,6 +1601,7 @@ const ruota = {
                 );
             }
         } else {
+            this._playCorrectLetter();
             let msg;
             if (isRaddoppia) {
                 this.punteggioRound[this.turno]*=2;
@@ -1575,6 +1687,7 @@ const ruota = {
     _confermaVocale(vocale) {
         // Vocale già chiamata = errore
         if (this.lettereRivelate.has(vocale)) {
+            this._playWrongLetter();
             this._showToast(`"${vocale}" è già stata chiamata — turno perso!`,"#ff4444");
             if (this.faseGong) setTimeout(()=>ruota._dopoLetteraGong(),1800);
             else setTimeout(()=>ruota._passaTurno(),1800);
@@ -1587,10 +1700,12 @@ const ruota = {
         let count=this._contaLettera(vocale);
         this._rivelaLettera(vocale);
         if (count===0) {
+            this._playWrongLetter();
             this._showToast(`"${vocale}" non è presente.`,"#888888");
             if (this.faseGong) setTimeout(()=>ruota._dopoLetteraGong(),1800);
             else setTimeout(()=>ruota._passaTurno(),1800);
         } else {
+            this._playCorrectLetter();
             let msg = count===1 ? `C'è solo una ${vocale}!` : `Ci sono ${this._numItaliano(count)} ${vocale}!`;
             this._showToast(msg,"#22cc66");
             setTimeout(()=>{
@@ -1779,6 +1894,7 @@ const ruota = {
                     if (onCorretta) { onCorretta(); }
                     else { ruota._vinceRound(ruota.turno); }
                 } else {
+                    ruota._playWrongSolution();
                     if (onSbagliata) {
                         ruota._showToast("Sbagliato!", "#ff4444", 1000);
                         setTimeout(() => onSbagliata(), 1200);
@@ -1827,6 +1943,7 @@ const ruota = {
 
     // ── Vittoria Round ─────────────────────────────────────────────
     _vinceRound(idx) {
+        this._playCorrectSolution();
         // Salva il valore di manche NOW — prima che qualsiasi timer asincrono lo modifichi
         let mancheCorrente = this.manche;
         this._ultimoVincitore = idx; // il vincitore non inizierà per primo la prossima manche
@@ -2005,13 +2122,14 @@ const ruota = {
             onConferma: (risposta) => {
                 let corretta = ruota.fraseCorrente ? ruota.fraseCorrente.frase.toUpperCase() : '';
                 if (risposta === corretta) { ruota._confermaTriplete(true, idx); }
-                else { ruota._showToast("Sbagliato!", "#ff4444", 1000); setTimeout(() => { if (onSbagliata) onSbagliata(); }, 1200); }
+                else { ruota._playWrongSolution(); ruota._showToast("Sbagliato!", "#ff4444", 1000); setTimeout(() => { if (onSbagliata) onSbagliata(); }, 1200); }
             }
         });
     },
 
     _confermaTriplete(corretto, idx) {
         if (corretto) {
+            this._playCorrectSolution();
             this._trileteBonusRound[idx]++;
             this.punteggioRound[idx] += 1000;
             if (this._trileteBonusRound[idx] >= 3) {
@@ -2164,10 +2282,12 @@ const ruota = {
         if (cdEl) cdEl.innerHTML=this._gongSecondi;
         this._gongTimer=setInterval(()=>{
             ruota._gongSecondi--;
+            ruota._playTimerTick();
             let el=document.getElementById("gong-countdown");
             if (el) { el.innerHTML=ruota._gongSecondi; if(ruota._gongSecondi<=1)el.style.color='#ff4444'; }
             if (ruota._gongSecondi<=0) {
                 clearInterval(ruota._gongTimer);
+                ruota._playTimeUp();
                 ruota._showToast("Tempo scaduto! Turno passato.","#888888", 1000);
                 setTimeout(()=>ruota._prossimoTurnoGong(),1200);
             }
@@ -2206,6 +2326,7 @@ const ruota = {
 
     _confermaConsGong(lettera) {
         if (this.lettereRivelate.has(lettera)) {
+            this._playWrongLetter();
             this._showToast(`"${lettera}" già chiamata — turno perso!`,"#ff4444");
             setTimeout(()=>ruota._dopoLetteraGong(),2000);
             return;
@@ -2213,9 +2334,11 @@ const ruota = {
         let count=this._contaLettera(lettera);
         this._rivelaLettera(lettera);
         if (count===0) {
+            this._playWrongLetter();
             this._showToast(`"${lettera}" non è presente!`,"#ff4444");
             setTimeout(()=>ruota._dopoLetteraGong(),2000);
         } else {
+            this._playCorrectLetter();
             let guad=this.valoreRuota*count;
             this.punteggioRound[this.turno]+=guad;
             this._showToast(this._msgLettera(count,lettera,guad),"#22cc66");
@@ -2269,10 +2392,12 @@ const ruota = {
         let sec=5;
         this._gongPensaTimer=setInterval(()=>{
             sec--;
+            ruota._playTimerTick();
             cdEl.innerHTML=sec;
             if (sec<=2) cdEl.style.color='#ff4444';
             if (sec<=0) {
                 clearInterval(ruota._gongPensaTimer);
+                ruota._playTimeUp();
                 ruota._showToast("Tempo scaduto — turno passato!","#888888", 1000);
                 setTimeout(()=>ruota._prossimoTurnoGong(),1200);
             }
@@ -2851,6 +2976,7 @@ const ruota = {
             if (this.manche <= 6) { ruota._iniziaManche(); }
             return;
         }
+        this._playVerdetto();
         main.current="RuotaVerdetto";
         clearInterval(this._gongTimer);
         grafica.puliscifield();
