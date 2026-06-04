@@ -105,13 +105,23 @@ io.on('connection', (socket) => {
         io.to(codice).emit('aggiorna_lobby', { giocatori: stanza.giocatori });
     });
 
-    socket.on('inizia_partita', ({ mancheDaSaltare } = {}) => {
+    socket.on('inizia_partita', ({ mancheDaSaltare, cpuSlots } = {}) => {
         if (!codiceStanza) return;
         const stanza = stanze[codiceStanza];
         if (!stanza || stanza.host !== socket.id) return;
         stanza.partitaIniziata = true;
         const nomi = stanza.giocatori.map(g => g.nome);
-        io.to(codiceStanza).emit('partita_iniziata', { nomi, mancheDaSaltare: mancheDaSaltare || [] });
+        if (cpuSlots && cpuSlots.length > 0) {
+            let botNum = 0;
+            for (let i = 0; i < 3; i++) {
+                if (cpuSlots.includes(i) && !nomi[i]) {
+                    botNum++;
+                    nomi[i] = botNum > 1 ? `🤖 BOT${botNum}` : '🤖 BOT';
+                }
+            }
+        }
+        while (nomi.length < 3) nomi.push(`GIOCATORE ${nomi.length + 1}`);
+        io.to(codiceStanza).emit('partita_iniziata', { nomi, mancheDaSaltare: mancheDaSaltare || [], cpuSlots: cpuSlots || [] });
     });
 
     socket.on('azione', ({ tipo, dati }) => {
