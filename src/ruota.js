@@ -900,12 +900,13 @@ const ruota = {
         let btnRow=document.createElement("div");
         btnRow.style.cssText=`display:flex;gap:24px;width:100%;margin-top:8px;`;
         for (let i=0;i<3;i++) {
+            let isBot = typeof ruotaCpu !== 'undefined' && ruotaCpu._è(i);
             let btn=document.createElement("button");
             btn.id=`vel-btn-${i}`;
-            btn.innerHTML=`${this._nomeG(i)} &mdash; MI PRENOTO`;
-            btn.style.cssText=`flex:1;padding:22px;background:rgba(255,255,255,0.07);border:2px solid ${this.COLORS[i]}66;border-radius:14px;color:${this.COLORS[i]};font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;cursor:pointer;letter-spacing:2px;`;
+            btn.innerHTML=`${this._nomeG(i)} &mdash; ${isBot ? '🤖 BOT' : 'MI PRENOTO'}`;
+            btn.style.cssText=`flex:1;padding:22px;background:rgba(255,255,255,0.07);border:2px solid ${this.COLORS[i]}66;border-radius:14px;color:${this.COLORS[i]};font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;cursor:${isBot?'default':'pointer'};letter-spacing:2px;pointer-events:${isBot?'none':'auto'};opacity:${isBot?'0.5':'1'};`;
             let idx=i;
-            btn.addEventListener('click',()=>ruota._velocissimaPrenota(idx));
+            if (!isBot) btn.addEventListener('click',()=>ruota._velocissimaPrenota(idx));
             btnRow.appendChild(btn);
         }
         wrap.appendChild(btnRow);
@@ -1074,12 +1075,13 @@ const ruota = {
         let canBuyVocal = this.punteggioRound[this.turno]>=500;
         let tutteConsRiv = this._tutteConsonantiRivelate();
         let tutteVocRiv = this._tutteVocaliRivelate();
-        let btnGira=this._mkBtn("🎡  GIRA LA RUOTA","#f0c800","#1a0a3c",()=>ruota._giraRuota(),this.attesaLettera||this._expressTurn||tutteConsRiv);
-        let btnVocale=this._mkBtn(`🔤  VOCALE · 500 €`,"rgba(255,255,255,0.07)","rgba(255,255,255,0.7)",()=>ruota._apriCompraVocale(),!canBuyVocal||this.attesaLettera||tutteVocRiv);
-        let btnSol=this._mkBtn("💡  DAI LA SOLUZIONE","rgba(34,204,102,0.1)","#22cc66",()=>ruota._apriSoluzione(),false);
+        let isBotTurn = typeof ruotaCpu !== 'undefined' && ruotaCpu._è(this.turno);
+        let btnGira=this._mkBtn("🎡  GIRA LA RUOTA","#f0c800","#1a0a3c",()=>ruota._giraRuota(),this.attesaLettera||this._expressTurn||tutteConsRiv||isBotTurn);
+        let btnVocale=this._mkBtn(`🔤  VOCALE · 500 €`,"rgba(255,255,255,0.07)","rgba(255,255,255,0.7)",()=>ruota._apriCompraVocale(),!canBuyVocal||this.attesaLettera||tutteVocRiv||isBotTurn);
+        let btnSol=this._mkBtn("💡  DAI LA SOLUZIONE","rgba(34,204,102,0.1)","#22cc66",()=>ruota._apriSoluzione(),isBotTurn);
         wrap.appendChild(btnGira);
         if (this._expressTurn && !this.attesaLettera) {
-            wrap.appendChild(this._mkBtn("🚄  CHIAMA CONSONANTE","rgba(123,47,190,0.18)","#c084fc",()=>ruota._apriChiamataLettera(false),false));
+            wrap.appendChild(this._mkBtn("🚄  CHIAMA CONSONANTE","rgba(123,47,190,0.18)","#c084fc",()=>ruota._apriChiamataLettera(false),isBotTurn));
         }
         wrap.appendChild(btnVocale); wrap.appendChild(btnSol);
 
@@ -1654,6 +1656,7 @@ const ruota = {
         wrap.appendChild(titolo);
 
         // ── 2 righe di consonanti centrate ──
+        let isBotTurnL = typeof ruotaCpu !== 'undefined' && ruotaCpu._è(ruota.turno);
         const ROW1 = 'BCDFGHJKLMN';
         const ROW2 = 'PQRSTVWXYZ';
         const makeRow = (letters) => {
@@ -1664,7 +1667,8 @@ const ruota = {
                 btn.className='ruota-lettera-btn';
                 btn.dataset.lettera=l;
                 btn.innerHTML=l;
-                btn.addEventListener('click',()=>ruota._confermaCons(l,isRaddoppia));
+                if (!isBotTurnL) btn.addEventListener('click',()=>ruota._confermaCons(l,isRaddoppia));
+                else { btn.style.pointerEvents='none'; btn.style.opacity='0.35'; btn.style.cursor='default'; }
                 row.appendChild(btn);
             }
             return row;
