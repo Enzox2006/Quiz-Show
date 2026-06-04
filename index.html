@@ -24,8 +24,12 @@
         });
     }
 </script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script>window.SOCKET_SERVER_URL = '';</script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
+    <script>
+        // Se si gioca dalla versione Replit, la connessione usa la stessa origine.
+        // Se si gioca da GitHub Pages o altro host esterno, impostare qui l'URL del server Replit.
+        window.SOCKET_SERVER_URL = '';
+    </script>
     <script src="src/domande.js" defer></script>
     <script src="src/domande_cruciverba.js" defer></script>
     <script src="src/domande_intesa.js" defer></script>
