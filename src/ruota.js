@@ -1859,31 +1859,61 @@ const ruota = {
         titEl.style.cssText += `color:${colore};letter-spacing:3px;font-size:clamp(18px,3.2vw,34px);flex-shrink:0;`;
         ov.appendChild(titEl);
 
+        // ── Calcolo dimensioni adattive alla viewport ────────────────
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
         // Tabellone — scala in base a larghezza E altezza viewport per evitare overflow
         let tab = this._buildTabellone();
         let tabNW = 14 * this.CELL_W + 13 * this.CELL_GAP;
         let tabNH = 4  * this.CELL_H + 3  * this.CELL_GAP;
-        let scW = Math.min(1.0, (window.innerWidth - 8) / tabNW);
-        let scH = (window.innerHeight * 0.26) / tabNH;
+        // Alloca al massimo il 28% dell'altezza al tabellone
+        let scW = Math.min(1.0, (vw - 8) / tabNW);
+        let scH = (vh * 0.28) / tabNH;
         let sc = Math.min(scW, scH);
+        let tabVisH = Math.round(tabNH * sc);
         tab.style.transform = `scale(${sc})`;
         tab.style.transformOrigin = 'top center';
         tab.style.marginBottom = Math.round((sc - 1) * tabNH) + 'px';
         tab.style.flexShrink = '0';
         ov.appendChild(tab);
 
-        // Banner categoria (identico alla schermata consonanti)
+        // Banner categoria
         if (this.fraseCorrente?.categoria) {
             let cat = this._buildCatBanner(this.fraseCorrente.categoria);
-            cat.style.cssText += 'margin:0;padding:6px 40px;font-size:clamp(18px,2.2vw,24px);flex-shrink:0;';
+            cat.style.cssText += 'margin:0;padding:4px 40px;font-size:clamp(14px,2vw,22px);flex-shrink:0;';
             ov.appendChild(cat);
         }
 
-        // Riga soluzione — caselle grandi, leggibili
-        let disp = document.createElement("div");
-        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:5px 14px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
+        // ── Calcola dimensione ottimale dei tasti ───────────────────
+        // Overhead fisso: title(34) + tabellone + cat(28) + solDisplay(44) + bottomRow(44) + padding(16) + 7 gaps
+        const titleH  = Math.min(34, Math.round(vh * 0.045));
+        const catH    = 28;
+        const solH    = Math.min(44, Math.round(vh * 0.055));
+        const bRowH   = Math.min(44, Math.round(vh * 0.055));
+        const padV    = 16;   // top+bottom padding totale
+        const nSections = 8; // title, tab, cat, sol, row1, row2, row3, bRow
+        const sectGap = Math.max(4, Math.min(10, Math.round(vh * 0.010)));
+        const overhead = padV + titleH + tabVisH + catH + solH + bRowH + (nSections - 1) * sectGap;
+        const kbdAvailH = vh - overhead;
 
-        ruota._renderSolDisplay(disp, ans, cur, colore, true);
+        // Tasto quadrato: dimensione da altezza (3 righe + 2 spazi) e da larghezza (10 tasti + 9 spazi)
+        const kbdGap = Math.max(4, Math.min(8, Math.round(vw * 0.006)));
+        const btnFromH = Math.floor((kbdAvailH - 2 * kbdGap) / 3);
+        const btnFromW = Math.floor((vw - 32 - 9 * kbdGap) / 10);
+        const btnSize  = Math.max(38, Math.min(64, btnFromH, btnFromW));
+        const btnFont  = Math.round(btnSize * 0.48);
+
+        // Aggiorna il gap dell'overlay in base alle dimensioni calcolate
+        ov.style.gap = sectGap + 'px';
+
+        // Riga soluzione — dimensioni adattive
+        let disp = document.createElement("div");
+        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:4px 10px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
+        const cellSize = Math.min(44, Math.max(26, Math.round(btnSize * 0.9))) + 'px';
+        const cellFont = Math.min(34, Math.max(18, Math.round(btnSize * 0.7))) + 'px';
+
+        ruota._renderSolDisplay(disp, ans, cur, colore, true, cellSize, cellFont);
         ov.appendChild(disp);
 
         const addLtr = (l) => {
@@ -1891,7 +1921,7 @@ const ruota = {
             ans[cur] = l;
             let prev = cur;
             cur = ans.findIndex((c, j) => j > prev && c === null);
-            ruota._renderSolDisplay(disp, ans, cur, colore, true);
+            ruota._renderSolDisplay(disp, ans, cur, colore, true, cellSize, cellFont);
             if (onLetterTyped) onLetterTyped([...ans], cur);
         };
         const doBack = () => {
@@ -1899,22 +1929,27 @@ const ruota = {
             for (let j = from; j >= 0; j--) {
                 if (isBlank(j) && ans[j] !== null) {
                     ans[j] = null; cur = j;
-                    ruota._renderSolDisplay(disp, ans, cur, colore, true);
+                    ruota._renderSolDisplay(disp, ans, cur, colore, true, cellSize, cellFont);
                     if (onLetterTyped) onLetterTyped([...ans], cur);
                     return;
                 }
             }
         };
 
+        // Crea riga tastiera con dimensioni calcolate inline
         const mkRow = (ltrs) => {
             let row = document.createElement("div");
             row.className = 'ruota-tastiera-riga';
+            row.style.gap = kbdGap + 'px';
             row.style.flexShrink = '0';
             for (let l of ltrs) {
                 let btn = document.createElement("button");
                 btn.className = 'ruota-lettera-btn';
                 btn.dataset.lettera = l;
                 btn.textContent = l;
+                btn.style.width = btnSize + 'px';
+                btn.style.height = btnSize + 'px';
+                btn.style.fontSize = btnFont + 'px';
                 btn.addEventListener('click', () => addLtr(l));
                 row.appendChild(btn);
             }
@@ -1926,22 +1961,27 @@ const ruota = {
         let bkBtn = document.createElement("button");
         bkBtn.className = 'ruota-lettera-btn';
         bkBtn.innerHTML = '⌫';
-        bkBtn.style.minWidth = '68px';
+        bkBtn.style.width  = Math.round(btnSize * 1.35) + 'px';
+        bkBtn.style.height = btnSize + 'px';
+        bkBtn.style.fontSize = btnFont + 'px';
         bkBtn.addEventListener('click', doBack);
         r3.appendChild(bkBtn);
         ov.appendChild(r3);
 
+        const btnPadV = Math.max(8, Math.round(bRowH * 0.28));
+        const btnFs   = Math.max(14, Math.round(bRowH * 0.55));
+
         let bRow = document.createElement("div");
-        bRow.style.cssText = `display:flex;gap:14px;width:100%;max-width:720px;flex-shrink:0;margin-top:2px;`;
+        bRow.style.cssText = `display:flex;gap:10px;width:100%;max-width:760px;flex-shrink:0;`;
 
         let annBtn = document.createElement("button");
         annBtn.innerHTML = annullaTesto || '← ANNULLA';
-        annBtn.style.cssText = `flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:14px;padding:10px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(16px,2.2vw,28px);font-weight:700;cursor:pointer;`;
+        annBtn.style.cssText = `flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);border:2px solid rgba(255,255,255,0.12);border-radius:12px;padding:${btnPadV}px 8px;font-family:'Barlow Condensed',sans-serif;font-size:${btnFs}px;font-weight:700;cursor:pointer;`;
         annBtn.addEventListener('click', () => { closeOv(); if (onAnnulla) onAnnulla(); });
 
         let confBtn = document.createElement("button");
         confBtn.innerHTML = '✓ CONFERMA SOLUZIONE';
-        confBtn.style.cssText = `flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:14px;padding:10px;font-family:'Barlow Condensed',sans-serif;font-size:clamp(16px,2.2vw,28px);font-weight:800;cursor:pointer;`;
+        confBtn.style.cssText = `flex:2;background:rgba(34,204,102,0.14);color:#22cc66;border:2px solid rgba(34,204,102,0.5);border-radius:12px;padding:${btnPadV}px 8px;font-family:'Barlow Condensed',sans-serif;font-size:${btnFs}px;font-weight:800;cursor:pointer;`;
         confBtn.addEventListener('click', () => { let r = ans.join(''); closeOv(); onConferma(r); });
 
         bRow.appendChild(annBtn); bRow.appendChild(confBtn);
