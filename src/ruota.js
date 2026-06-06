@@ -1532,7 +1532,12 @@ const ruota = {
         wrap.appendChild(wheelWrap); wrap.appendChild(bottomPanel); field.appendChild(wrap);
         let n = this.SPICCHI.length, sliceAngle = (Math.PI * 2) / n;
         let startRot = this._lastRotation || 0;
-        let extraSpins = (5 + Math.floor(Math.random() * 4)) * Math.PI * 2;
+        // Settore casuale con posizione interna casuale — la ruota NON è deterministica
+        let targetIdx = Math.floor(Math.random() * n);
+        let targetAngle = targetIdx * sliceAngle + sliceAngle * (0.2 + Math.random() * 0.6);
+        // Calcola extraSpins per atterrare esattamente su targetAngle dopo ≥5 giri completi
+        let base = ((-startRot - targetAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        let extraSpins = base + (5 + Math.floor(Math.random() * 4)) * Math.PI * 2;
         let duration = 2400 + Math.random() * 800;
         let startTime = performance.now();
         ruota._disegnaRuota(canvas, startRot);
@@ -1656,18 +1661,29 @@ const ruota = {
         titolo.className='ruota-lettera-titolo';
         wrap.appendChild(titolo);
 
-        // ── 2 righe di consonanti centrate ──
+        // ── 2 righe di consonanti centrate — dimensioni adattive ──
         let isBotTurnL = typeof ruotaCpu !== 'undefined' && ruotaCpu._è(ruota.turno);
-        const ROW1 = 'BCDFGHJKLMN';
-        const ROW2 = 'PQRSTVWXYZ';
+        const ROW1 = 'BCDFGHJKLMN'; // 11 lettere
+        const ROW2 = 'PQRSTVWXYZ';  // 10 lettere
+        // Scale del field: w / 1920. Per ottenere ~52px fisici, la dimensione virtuale
+        // deve essere 52 / scale = 52 * 1920 / vw. Cappata dalla riga più lunga (11 btn + 10 gap).
+        const _vw = window.innerWidth;
+        const _vGap = 8; // gap virtuale fisso tra i tasti
+        const _maxVirtualFromRow = Math.floor((fieldWidth - 32 - 10 * _vGap) / 11);
+        const _virtualBtn = Math.min(Math.round(52 * fieldWidth / _vw), _maxVirtualFromRow);
+        const _virtualFont = Math.round(_virtualBtn * 0.44);
         const makeRow = (letters) => {
             let row = document.createElement("div");
             row.className='ruota-tastiera-riga';
+            row.style.gap = _vGap + 'px';
             for (let l of letters) {
                 let btn=document.createElement("button");
                 btn.className='ruota-lettera-btn';
                 btn.dataset.lettera=l;
                 btn.innerHTML=l;
+                btn.style.width = _virtualBtn + 'px';
+                btn.style.height = _virtualBtn + 'px';
+                btn.style.fontSize = _virtualFont + 'px';
                 if (!isBotTurnL) btn.addEventListener('click',()=>ruota._confermaCons(l,isRaddoppia));
                 else { btn.style.pointerEvents='none'; btn.style.opacity='0.35'; btn.style.cursor='default'; }
                 row.appendChild(btn);
@@ -1728,12 +1744,10 @@ const ruota = {
                 msg = `${count===1?`C'è solo una`:`Ci sono ${this._numItaliano(count)}`} ${lettera} — punteggio RADDOPPIATO!`;
                 this._showToast(msg,"#22cc66");
             } else if (this._tipoAzione === 'jolly') {
-                // Jolly conquistato: assegna la carta e sostituisci lo spicchio con 200€
+                // Jolly conquistato: assegna la carta, NESSUN guadagno in denaro
                 this.jolly[this.turno] = true; this._jollyPreso = true;
                 if (this._jollyIdx >= 0) { this.SPICCHI[this._jollyIdx]={label:'200',valore:200,tipo:'euro',colore:'#1e3a8a'}; this._jollyIdx=-1; }
-                let guadJ = this.valoreRuota * count;
-                this.punteggioRound[this.turno] += guadJ;
-                msg = `🃏 JOLLY conquistato! ${this._msgLettera(count, lettera, guadJ)}`;
+                msg = `🃏 JOLLY conquistato! ${count===1?`C'è una`:`Ci sono ${this._numItaliano(count)}`} ${lettera} — carta jolly assegnata, nessun guadagno!`;
                 this._showToast(msg, "#7B2FBE");
             } else if (this._expressTurn) {
                 // EXPRESS: valore fisso 500€ × occorrenze
@@ -1907,9 +1921,9 @@ const ruota = {
         // Aggiorna il gap dell'overlay in base alle dimensioni calcolate
         ov.style.gap = sectGap + 'px';
 
-        // Riga soluzione — dimensioni adattive
+        // Riga soluzione — dimensioni adattive con altezza massima per non spingere i tasti fuori
         let disp = document.createElement("div");
-        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:4px 10px;padding:2px 8px;max-width:100%;flex-shrink:0;`;
+        disp.style.cssText = `display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:4px 10px;padding:2px 8px;max-width:100%;flex-shrink:1;max-height:${Math.round(vh*0.20)}px;overflow-y:auto;overflow-x:hidden;`;
         const cellSize = Math.min(44, Math.max(26, Math.round(btnSize * 0.9))) + 'px';
         const cellFont = Math.min(34, Math.max(18, Math.round(btnSize * 0.7))) + 'px';
 
