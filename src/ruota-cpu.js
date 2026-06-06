@@ -7,7 +7,7 @@ const ruotaCpu = {
     _velBooked: [],
     _velAnswering: false,
 
-    FREQ_CONS: ['R','S','T','N','L','M','C','D','P','B','V','G','F','H','Z','J','K','Q','W','X','Y'],
+    FREQ_CONS: ['R','S','T','N','L','M','C','D','P','B','V','G','F','H','Z'],
     FREQ_VOC: ['A','E','I','O','U'],
 
     reset() {
@@ -83,9 +83,8 @@ const ruotaCpu = {
         let total = ruota._velPosizioniLettere.length;
         let revealed = ruota._velIdx || 0;
         let pct = revealed / total;
-        let threshold = this.difficolta === 'difficile' ? 0.12 :
-                        this.difficolta === 'media'     ? 0.28 : 0.50;
-        if (pct < threshold) return;
+        // Soglia fissa: almeno il 65% delle lettere rivelate E minimo 10 lettere visibili
+        if (pct < 0.65 || revealed < 10) return;
 
         for (let idx of this.slots) {
             if (this._velBooked.includes(idx)) continue;
@@ -147,9 +146,8 @@ const ruotaCpu = {
         let total = ruota._trillettePosizioni.length;
         let revealed = ruota._triletteRevIdx || 0;
         let pct = revealed / total;
-        let threshold = this.difficolta === 'difficile' ? 0.30 :
-                        this.difficolta === 'media'     ? 0.50 : 0.72;
-        if (pct < threshold) return;
+        // Soglia fissa per il Triplete
+        if (pct < 0.60) return;
 
         for (let idx of this.slots) {
             if ((ruota._triletteEliminate || []).includes(idx)) continue;
@@ -197,6 +195,7 @@ const ruotaCpu = {
     // ── Turno principale (RuotaGioco) ───────────────────────────────────
     _azioneGioco() {
         this._cpuActing = true;
+        let turnoInizio = ruota.turno; // cattura il turno corrente per evitare azioni sul turno sbagliato
         let frase = ruota.fraseCorrente?.frase || '';
         let scoperte = 0;
         for (let i = 0; i < frase.length; i++) {
@@ -208,7 +207,7 @@ const ruotaCpu = {
         if (ruota.manche === 6 && !ruota.faseGong) {
             if (pct >= 0.25) {
                 setTimeout(() => {
-                    if (main.current !== 'RuotaGioco' || ruota.faseGong) { this._cpuActing = false; return; }
+                    if (main.current !== 'RuotaGioco' || ruota.faseGong || ruota.turno !== turnoInizio) { this._cpuActing = false; return; }
                     ruota._giraRuotaFinale();
                     this._cpuActing = false;
                 }, this._delay(800));
@@ -219,9 +218,8 @@ const ruotaCpu = {
         if (ruota.manche === 6 && ruota.faseGong) {
             this._cpuActing = false; return;
         }
-        // Soglie più conservative: il bot non tenta prima che siano visibili abbastanza lettere
-        let sogliaSol = this.difficolta === 'difficile' ? 0.72 :
-                        this.difficolta === 'media'     ? 0.80 : 0.90;
+        // Soglia fissa ~70% lettere effettive (pct include spazi come già rivelati → ~0.75)
+        let sogliaSol = 0.75;
 
         let tutteVoc = ruota._tutteVocaliRivelate ? ruota._tutteVocaliRivelate() : true;
         let tutteConRiv = ruota._tutteConsonantiRivelate ? ruota._tutteConsonantiRivelate() : false;
@@ -229,7 +227,8 @@ const ruotaCpu = {
         let wantsVocale = canVocale && pct >= 0.3 && Math.random() < 0.35;
 
         setTimeout(() => {
-            if (main.current !== 'RuotaGioco' || !this._è(ruota.turno)) {
+            // Verifica che il turno non sia cambiato durante il ritardo
+            if (main.current !== 'RuotaGioco' || ruota.turno !== turnoInizio) {
                 this._cpuActing = false; return;
             }
             if (pct >= sogliaSol && Math.random() < 0.85) {
@@ -259,10 +258,11 @@ const ruotaCpu = {
     // Quando faseGong è true usa _confermaConsGong invece di _confermaCons
     _azioneLettera() {
         this._cpuActing = true;
+        let turnoInizio = ruota.turno;
         let isRaddoppia = ruota._tipoAzione === 'raddoppia';
         let isGong = ruota.faseGong === true;
         setTimeout(() => {
-            if (main.current !== 'RuotaLettera' || !this._è(ruota.turno)) {
+            if (main.current !== 'RuotaLettera' || ruota.turno !== turnoInizio) {
                 this._cpuActing = false; return;
             }
             let l = this._scegliConsonante();
@@ -283,8 +283,9 @@ const ruotaCpu = {
     // ── Acquisto vocale (RuotaVocale) ───────────────────────────────────
     _azioneVocale() {
         this._cpuActing = true;
+        let turnoInizio = ruota.turno;
         setTimeout(() => {
-            if (main.current !== 'RuotaVocale' || !this._è(ruota.turno)) {
+            if (main.current !== 'RuotaVocale' || ruota.turno !== turnoInizio) {
                 this._cpuActing = false; return;
             }
             let v = this._scegliVocale();
@@ -343,8 +344,7 @@ const ruotaCpu = {
             if ((ruota.fraseLettereScoperte || [])[i] || !/[A-Z]/i.test(frase[i])) scoperte++;
         }
         let pct = frase.length > 0 ? scoperte / frase.length : 0;
-        let sogliaSol = this.difficolta === 'difficile' ? 0.72 :
-                        this.difficolta === 'media'     ? 0.80 : 0.90;
+        let sogliaSol = 0.75;
 
         // Finestra post-consonante nel Gong (5 secondi per dare la soluzione).
         // Il bot tenta solo se ha abbastanza lettere visibili, altrimenti lascia scadere il timer.
@@ -478,17 +478,24 @@ const ruotaCpu = {
 
     // Usata per la soluzione nel gioco principale e nel Gong:
     // il bot costruisce la risposta SOLO dalle lettere rivelate sul tabellone.
-    // Le lettere non ancora scoperte vengono sostituite con lettere improbabili,
-    // quindi il bot non può "indovinare" la frase se troppe lettere sono nascoste.
+    // Le posizioni nascoste vengono riempite con lettere italiane comuni ma sbagliate:
+    // in questo modo il bot non può "indovinare" la frase se troppe lettere sono nascoste,
+    // e le risposte sembrano italiano plausibile (non gibberish con K,X,Y).
     _rispostaFraseGioco() {
         let frase = (ruota.fraseCorrente?.frase || '').toUpperCase();
         let scoperte = ruota.fraseLettereScoperte || [];
+        let rivelate = ruota.lettereRivelate || new Set();
+        // Lettere italiane comuni ordinate per frequenza (escluse rarissime K,X,Y,W,J,Q)
+        const COMUNI = ['E','A','I','O','N','T','R','S','L','C','D','P','M','U','B','V','G','F','Z','H'];
+        // Pool: lettere comuni NON ancora rivelate (così sono sicuramente sbagliate)
+        let pool = COMUNI.filter(c => !rivelate.has(c));
+        if (pool.length === 0) pool = [...COMUNI];
         let arr = frase.split('');
-        let SUBS = ['Q','X','Z','K','W','J','Y'];
         for (let i = 0; i < arr.length; i++) {
             if (!/[A-Z]/.test(arr[i])) continue;
             if (scoperte[i]) continue;
-            arr[i] = SUBS[Math.floor(Math.random() * SUBS.length)];
+            // Lettera plausibile in italiano ma sicuramente non corretta (non è nel tabellone)
+            arr[i] = pool[Math.floor(Math.random() * pool.length)];
         }
         return arr.join('');
     },
