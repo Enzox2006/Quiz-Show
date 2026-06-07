@@ -2035,7 +2035,7 @@ const ruota = {
                     let blank = val === null;
                     let pre = !isBlank(i);
                     let isCur = (i === curIdx);
-                    cell.style.cssText = `width:${CS};height:${CS};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:${CF};font-weight:800;border-bottom:3px solid ${pre?'rgba(255,255,255,0.15)':isCur?colore:'rgba(255,255,255,0.45)'};color:${pre?'rgba(255,255,255,0.32)':blank?'rgba(255,255,255,0.25)':'white'};box-sizing:border-box;flex-shrink:0;`;
+                    cell.style.cssText = `width:${CS};height:${CS};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:${CF};font-weight:800;border-bottom:3px solid ${pre?'rgba(255,255,255,0.35)':isCur?colore:'rgba(255,255,255,0.55)'};color:${pre?'rgba(255,255,255,0.70)':blank?'rgba(255,255,255,0.30)':'white'};box-sizing:border-box;flex-shrink:0;`;
                     if (blank && isCur) {
                         cell.innerHTML = blink
                             ? `<span style="color:${colore};animation:vkBlink 0.9s step-end infinite">▮</span>`
@@ -2663,10 +2663,11 @@ const ruota = {
     _startBonusRaddoppio(vincitoreIdx) {
         let cat = this.fraseCorrente.categoria;
         this._bonusCat = cat;
-        // Filtra frasi corte (max 25 lettere esclusi spazi) per garantire che sia risolvibile
-        let pool = FRASI_RUOTA.filter(f => f.categoria === cat && f.frase.replace(/ /g,'').length <= 25);
+        // Frasi brevi (25-33 lettere) per garantire che il bonus sia risolvibile in 15 secondi
+        const _lcBonus = s => (s.match(/[A-Za-zÀ-Ö]/g)||[]).length;
+        let pool = FRASI_RUOTA.filter(f => f.categoria === cat && _lcBonus(f.frase) <= 33);
         if (pool.length > 1) pool = pool.filter(f => f.frase !== this.fraseCorrente.frase);
-        if (pool.length === 0) pool = FRASI_RUOTA.filter(f => f.frase.replace(/ /g,'').length <= 25 && f.frase !== this.fraseCorrente.frase);
+        if (pool.length === 0) pool = FRASI_RUOTA.filter(f => _lcBonus(f.frase) <= 33 && f.frase !== this.fraseCorrente.frase);
         if (pool.length === 0) pool = FRASI_RUOTA.filter(f => f.frase !== this.fraseCorrente.frase);
         this._nuovaFrase(pool);
         this._raddoppioVincitore = vincitoreIdx;
