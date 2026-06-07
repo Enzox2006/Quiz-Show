@@ -1864,7 +1864,7 @@ const ruota = {
 
         let ov = document.createElement("div");
         ov.id = overlayId || 'soluzione-overlay';
-        ov.style.cssText = `position:${posFixed?'fixed':'absolute'};top:0;left:0;right:0;bottom:0;background:rgba(5,0,20,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:8000;padding:8px 16px;box-sizing:border-box;overflow:hidden;`;
+        ov.style.cssText = `position:${posFixed?'fixed':'absolute'};top:0;left:0;right:0;bottom:0;background:#050014;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:8000;padding:8px 16px;box-sizing:border-box;overflow:hidden;`;
 
         // Titolo giocatore — usa stessa classe della schermata consonanti
         let titEl = document.createElement("div");
