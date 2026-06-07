@@ -476,26 +476,47 @@ const ruotaCpu = {
         return arr.join('');
     },
 
-    // Usata per la soluzione nel gioco principale e nel Gong:
-    // il bot costruisce la risposta SOLO dalle lettere rivelate sul tabellone.
-    // Le posizioni nascoste vengono riempite con lettere italiane comuni ma sbagliate:
-    // in questo modo il bot non può "indovinare" la frase se troppe lettere sono nascoste,
-    // e le risposte sembrano italiano plausibile (non gibberish con K,X,Y).
+    // Usata per la soluzione nel gioco principale e nel Gong.
+    // Con poche lettere nascoste il bot ha buone chance di "intuire" la risposta
+    // (come farebbe un giocatore umano che vede quasi tutta la frase).
+    // Con molte lettere nascoste, le posizioni vengono riempite con lettere italiane
+    // plausibili ma sbagliate, così la risposta è quasi certamente errata.
     _rispostaFraseGioco() {
         let frase = (ruota.fraseCorrente?.frase || '').toUpperCase();
         let scoperte = ruota.fraseLettereScoperte || [];
         let rivelate = ruota.lettereRivelate || new Set();
-        // Lettere italiane comuni ordinate per frequenza (escluse rarissime K,X,Y,W,J,Q)
+
+        // Conta le lettere ancora nascoste
+        let nascoste = 0;
+        for (let i = 0; i < frase.length; i++) {
+            if (/[A-Z]/.test(frase[i]) && !scoperte[i]) nascoste++;
+        }
+
+        // Probabilità per lettera nascosta di essere indovinata "dal contesto".
+        // La chance totale di risposta corretta è chancePerLettera^nascoste:
+        //   1 mancante → 90%   | 2 → ~64%  | 3 → ~27%
+        //   4 mancanti → ~6%   | 5 → ~0.2% | 6+ → non tenta
+        let chancePerLettera = nascoste <= 1 ? 0.90 :
+                               nascoste <= 2 ? 0.80 :
+                               nascoste <= 3 ? 0.65 :
+                               nascoste <= 4 ? 0.50 :
+                               nascoste <= 5 ? 0.30 : 0.0;
+
+        // Pool di lettere italiane comuni NON ancora rivelate (fallback sbagliato)
         const COMUNI = ['E','A','I','O','N','T','R','S','L','C','D','P','M','U','B','V','G','F','Z','H'];
-        // Pool: lettere comuni NON ancora rivelate (così sono sicuramente sbagliate)
         let pool = COMUNI.filter(c => !rivelate.has(c));
         if (pool.length === 0) pool = [...COMUNI];
+
         let arr = frase.split('');
         for (let i = 0; i < arr.length; i++) {
             if (!/[A-Z]/.test(arr[i])) continue;
             if (scoperte[i]) continue;
-            // Lettera plausibile in italiano ma sicuramente non corretta (non è nel tabellone)
-            arr[i] = pool[Math.floor(Math.random() * pool.length)];
+            if (Math.random() < chancePerLettera) {
+                // Il bot "intuisce" la lettera corretta dal contesto (arr[i] rimane)
+            } else {
+                // Il bot sbaglia: usa una lettera italiana plausibile ma errata
+                arr[i] = pool[Math.floor(Math.random() * pool.length)];
+            }
         }
         return arr.join('');
     },
